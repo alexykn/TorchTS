@@ -1,0 +1,6 @@
+version_backup/
+node_modules/
+__pycache__/
+.venv/
+.vscode/
+.DS_Store
