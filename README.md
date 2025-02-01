@@ -4,6 +4,10 @@
 
 TorchTS is a text-to-speech application built with Python and Vue.js. It provides an interface for converting text from various document formats into speech using the Kokoro TTS model. The project combines a FastAPI backend with a Vue.js frontend to create a practical tool for text-to-speech conversion.
 
+![Dark Mode](img/dark_mode.png)
+
+![Light Mode](img/light_mode.png)
+
 ## Features
 
 - **Text Processing:** Text handling and chunking utilities
@@ -30,9 +34,9 @@ TorchTS is a text-to-speech application built with Python and Vue.js. It provide
 
 ## Installation
 
-### Backend Setup (Python)
+### Backend Setup (Python)1
 
-1. Ensure you have Python 3.7+ installed
+1. Ensure you have Python 3.11+ installed
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
