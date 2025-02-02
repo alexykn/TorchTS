@@ -47,7 +47,7 @@ class TTSRequest(BaseModel):
 class ProfileCreate(BaseModel):
     name: str
     voice_preset: str | None = None
-    volume: float = 0.7
+    volume: float = 0.8
 
 @app.post("/profiles")
 async def create_profile(profile: ProfileCreate):

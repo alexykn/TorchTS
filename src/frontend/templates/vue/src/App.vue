@@ -146,8 +146,8 @@
                     v-model="newProfileVolume"
                     label="Default Volume"
                     min="0"
-                    max="1"
-                    step="0.1"
+                    max="100"
+                    step="1"
                     thumb-label
                   ></v-slider>
                 </v-card-text>
@@ -275,8 +275,8 @@
                     v-model="volume"
                     class="macos-slider"
                     min="0"
-                    max="1"
-                    step="0.1"
+                    max="100"
+                    step="1"
                     @input="handleVolumeChange"
                   >
                 </div>
@@ -486,11 +486,11 @@ function handleDragOver(event) {
 }
 
 function handleVolumeChange(event) {
-  const newVolume = parseFloat(event.target.value)
-  volume.value = newVolume
-  setVolume(newVolume)
+  const newVolume = parseFloat(event.target.value) / 100  // Convert 0-100 to 0-1
+  volume.value = parseInt(event.target.value)  // Keep the 0-100 value in the UI
+  setVolume(newVolume)  // Send 0-1 value to audio
   // Update the volume slider fill
-  event.target.style.setProperty('--volume-percentage', `${newVolume * 100}%`)
+  event.target.style.setProperty('--volume-percentage', `${volume.value}%`)
 }
 
 async function handleGenerateSpeech() {
@@ -526,7 +526,7 @@ function handleSeek(event) {
 
 // Watch volume changes
 watch(volume, (newValue) => {
-  setVolume(newValue)
+  setVolume(newValue / 100)  // Convert to 0-1 range when setting volume
 })
 
 // Add this to the mounted hook
@@ -534,7 +534,7 @@ onMounted(() => {
   // Initialize volume slider fill
   const volumeSlider = document.querySelector('.macos-slider')
   if (volumeSlider) {
-    volumeSlider.style.setProperty('--volume-percentage', `${volume.value * 100}%`)
+    volumeSlider.style.setProperty('--volume-percentage', `${volume.value}%`)
   }
 })
 
@@ -552,7 +552,7 @@ async function createProfile() {
     const profile = await createProfileAPI(
       newProfileName.value,
       newProfileVoice.value,
-      newProfileVolume.value
+      newProfileVolume.value / 100  // Convert to 0-1 range for API
     )
     selectedProfile.value = profile.id
     showNewProfileDialog.value = false
@@ -571,7 +571,7 @@ async function handleProfileSelect(profileId) {
       const profileData = await selectProfileAPI(profileId)
       // Update voice and volume based on profile
       voice.value = profileData.profile.voice_preset || DEFAULT_VOICE
-      volume.value = profileData.profile.volume || DEFAULT_VOLUME
+      volume.value = (profileData.profile.volume * 100) || DEFAULT_VOLUME  // Convert from 0-1 to 0-100
       // Set the files from the profile
       setFiles(profileData.files.map(f => ({
         ...f,
@@ -760,7 +760,7 @@ async function handleDeleteProfile() {
 .macos-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 2px;
+  width: 10px;
   height: 36px;
   background: rgb(var(--v-theme-primary));
   border-radius: 0;
@@ -768,7 +768,7 @@ async function handleDeleteProfile() {
 }
 
 .macos-slider::-moz-range-thumb {
-  width: 2px;
+  width: 10px;
   height: 36px;
   background: rgb(var(--v-theme-primary));
   border: none;

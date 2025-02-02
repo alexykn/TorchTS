@@ -11,4 +11,4 @@ export const VOICE_OPTIONS = [
 ]
 
 export const DEFAULT_VOICE = 'am_michael'
-export const DEFAULT_VOLUME = 0.7 
+export const DEFAULT_VOLUME = 80 

@@ -18,7 +18,7 @@ class Profile(Base):
     name = Column(String, unique=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     voice_preset = Column(String)
-    volume = Column(Float, default=0.7)
+    volume = Column(Float, default=0.8)
     
     files = relationship("File", back_populates="profile", cascade="all, delete-orphan")
     audio_outputs = relationship("AudioOutput", back_populates="profile", cascade="all, delete-orphan")
@@ -57,8 +57,8 @@ def create_default_profile():
         if session.query(Profile).count() == 0:
             default_profile = Profile(
                 name="Default Profile",
-                voice_preset="a_emma",  # Default voice
-                volume=0.7
+                voice_preset="am_michael",  # Default voice
+                volume=0.8  # Changed from 0.7 to 0.8 to match frontend's 80
             )
             session.add(default_profile)
             session.commit()
