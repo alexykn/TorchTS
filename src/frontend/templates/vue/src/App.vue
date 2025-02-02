@@ -507,7 +507,6 @@ function togglePlayback() {
 function resetAll() {
   text.value = ''
   resetTTS()
-  clearFiles()
   if (fileInput.value) {
     fileInput.value.value = ''
   }
