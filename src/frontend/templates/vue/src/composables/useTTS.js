@@ -15,6 +15,7 @@ export function useTTS() {
   const playbackProgress = ref(0)  // 0 to 100
   const isDownloadComplete = ref(false)
   const audioDuration = ref(0)
+  const currentTime = ref(0)  // Add current time ref
   let totalChunks = 0
   let validatedTotalChunks = null
   let isFetching = false
@@ -22,6 +23,7 @@ export function useTTS() {
   let pausedTime = 0
   let totalDuration = 0
   let unifiedBuffer = null
+  let progressInterval = null  // Add interval reference
 
   function initAudio() {
     if (!audioContext.value) {
@@ -129,11 +131,29 @@ export function useTTS() {
   function updatePlaybackProgress() {
     if (!isPlaying.value || !audioContext.value) return
     
-    const currentTime = audioContext.value.currentTime - startTime
-    playbackProgress.value = Math.min(100, Math.round((currentTime / totalDuration) * 100))
+    const elapsed = audioContext.value.currentTime - startTime
+    currentTime.value = Math.min(totalDuration, elapsed)  // Update current time
+    playbackProgress.value = Math.min(100, (elapsed / totalDuration) * 100)
     
     if (isPlaying.value) {
       requestAnimationFrame(updatePlaybackProgress)
+    }
+  }
+
+  function startProgressUpdates() {
+    // Clear any existing interval
+    if (progressInterval) {
+      clearInterval(progressInterval)
+    }
+    
+    // Start the updates
+    updatePlaybackProgress()
+  }
+
+  function stopProgressUpdates() {
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
     }
   }
 
@@ -141,6 +161,7 @@ export function useTTS() {
     if (!isDownloadComplete.value || !unifiedBuffer) return
     
     const targetTime = (position / 100) * totalDuration
+    currentTime.value = targetTime  // Update current time when seeking
     
     if (currentSource.value) {
       currentSource.value.onended = null
@@ -163,11 +184,13 @@ export function useTTS() {
     
     startTime = audioContext.value.currentTime - targetTime
     currentSource.value.start(0, targetTime)
-    requestAnimationFrame(updatePlaybackProgress)
+    startProgressUpdates()
     
     currentSource.value.onended = () => {
       isPlaying.value = false
       progressMessage.value = 'Playback complete!'
+      stopProgressUpdates()
+      currentTime.value = totalDuration  // Set to total duration when complete
     }
   }
 
@@ -219,12 +242,13 @@ export function useTTS() {
         }
         
         currentSource.value.start(0)
-        requestAnimationFrame(updatePlaybackProgress)
+        startProgressUpdates()
         
         currentSource.value.onended = () => {
           if (isPlaying.value) {
             isPlaying.value = false
             progressMessage.value = 'Playback complete!'
+            stopProgressUpdates()
           }
         }
       }
@@ -244,6 +268,7 @@ export function useTTS() {
         isGenerating.value = false
         isPlaying.value = false
         progressMessage.value = 'Playback complete!'
+        stopProgressUpdates()
         return
       }
     }
@@ -264,7 +289,7 @@ export function useTTS() {
         isGenerating.value = false
         isPlaying.value = true
         startTime = audioContext.value.currentTime - pausedTime
-        requestAnimationFrame(updatePlaybackProgress)
+        startProgressUpdates()
       }
 
       currentSource.value.start(0)
@@ -351,10 +376,11 @@ export function useTTS() {
     if (isPlaying.value) {
       audioContext.value.suspend()
       pausedTime = audioContext.value.currentTime - startTime
+      stopProgressUpdates()
     } else {
       audioContext.value.resume()
       startTime = audioContext.value.currentTime - pausedTime
-      requestAnimationFrame(updatePlaybackProgress)
+      startProgressUpdates()
     }
     isPlaying.value = !isPlaying.value
   }
@@ -383,6 +409,8 @@ export function useTTS() {
     startTime = 0
     pausedTime = 0
     unifiedBuffer = null
+    currentTime.value = 0  // Reset current time
+    stopProgressUpdates()  // Stop progress updates
     chunkCache.clear()
   }
 
@@ -482,6 +510,7 @@ export function useTTS() {
   }
 
   onUnmounted(() => {
+    stopProgressUpdates()  // Clean up interval on unmount
     reset()
   })
 
@@ -500,6 +529,7 @@ export function useTTS() {
     setVolume,
     seekToPosition,
     downloadAudio,
-    audioDuration
+    audioDuration,
+    currentTime  // Export current time
   }
 } 

@@ -356,7 +356,7 @@
                       :style="{ width: `${playbackProgress}%` }"
                     ></div>
                     <div class="time-counter">
-                      {{ formatTime(currentTime) }}/{{ formatTime(totalDuration) }}
+                      {{ formatTime(currentTime) }}/{{ formatTime(audioDuration) }}
                     </div>
                   </div>
                 </div>
@@ -403,7 +403,8 @@ const {
   isDownloadComplete,
   seekToPosition,
   downloadAudio,
-  audioDuration
+  audioDuration,
+  currentTime
 } = useTTS()
 
 const {
@@ -444,10 +445,6 @@ const selectedProfile = ref(localStorage.getItem('selectedProfileId') ? parseInt
 // Add new state for dialogs
 const showDeleteFilesDialog = ref(false)
 const showDeleteProfileDialog = ref(false)
-
-// Add time tracking state
-const currentTime = ref(0)
-const totalDuration = ref(0)
 
 // Methods
 async function processFile(file) {
@@ -519,31 +516,13 @@ function formatTime(seconds) {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
-// Update the handleSeek function to update currentTime
+// Update the handleSeek function
 function handleSeek(event) {
   const position = parseFloat(event.target.value)
   if (!isNaN(position)) {
     seekToPosition(position)
-    currentTime.value = (position / 100) * totalDuration.value
   }
 }
-
-// Watch playbackProgress to update currentTime
-watch(playbackProgress, (newProgress) => {
-  if (audioDuration.value > 0) {
-    currentTime.value = (newProgress / 100) * audioDuration.value
-  }
-})
-
-// Watch currentSource to update totalDuration
-watch(currentSource, (newSource) => {
-  if (newSource) {
-    totalDuration.value = audioDuration.value
-  } else {
-    totalDuration.value = 0
-    currentTime.value = 0
-  }
-})
 
 // Watch volume changes
 watch(volume, (newValue) => {
