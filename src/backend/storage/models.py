@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Session
 from datetime import datetime
 import os
 
@@ -50,3 +50,18 @@ class AudioOutput(Base):
 
 # Create all tables
 Base.metadata.create_all(engine)
+
+# Create default profile if none exists
+def create_default_profile():
+    with Session(engine) as session:
+        if session.query(Profile).count() == 0:
+            default_profile = Profile(
+                name="Default Profile",
+                voice_preset="a_emma",  # Default voice
+                volume=0.7
+            )
+            session.add(default_profile)
+            session.commit()
+
+# Create default profile when module is imported
+create_default_profile()

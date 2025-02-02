@@ -11,6 +11,15 @@ export function useProfiles() {
     try {
       const response = await fetch(API_ENDPOINTS.PROFILES)
       profiles.value = await response.json()
+      
+      // If there's no selected profile in localStorage but profiles exist,
+      // select the first profile (which should be the default one)
+      const savedProfileId = localStorage.getItem('selectedProfileId')
+      if (!savedProfileId && profiles.value.length > 0) {
+        const defaultProfile = profiles.value[0]
+        await selectProfile(defaultProfile.id)
+        localStorage.setItem('selectedProfileId', defaultProfile.id)
+      }
     } catch (error) {
       console.error('Error loading profiles:', error)
     } finally {
