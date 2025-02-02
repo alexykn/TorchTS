@@ -38,7 +38,7 @@
               <p class="mt-2">Drop files here or click to upload</p>
             </div>
             <div class="supported-formats" aria-label="Supported file formats">
-              Supported formats: {{ SUPPORTED_FORMATS }}
+              {{ SUPPORTED_FORMATS }}
             </div>
           </div>
           
@@ -961,7 +961,7 @@ async function handleDeleteProfile() {
   color: rgb(var(--v-theme-on-surface-variant));
   opacity: 0.7;
   margin-top: 8px;
-  text-align: left;
+  text-align: center;
 }
 
 .progress-container {
