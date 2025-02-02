@@ -182,6 +182,7 @@
                     class="progress-slider"
                     :value="playbackProgress"
                     @input="handleSeek"
+                    @change="handleSeek"
                     min="0"
                     max="100"
                     step="0.1"
@@ -316,7 +317,9 @@ function resetAll() {
 
 function handleSeek(event) {
   const position = parseFloat(event.target.value)
-  seekToPosition(position)
+  if (!isNaN(position)) {
+    seekToPosition(position)
+  }
 }
 
 // Watch volume changes
@@ -698,6 +701,25 @@ onMounted(() => {
   z-index: 2;
   margin: 0;
   padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 36px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 20px;
+  height: 36px;
+  background: transparent;
+  cursor: pointer;
+  border: none;
 }
 
 .progress-bar-container {
@@ -707,7 +729,7 @@ onMounted(() => {
   background: rgb(var(--v-theme-surface-variant));
   border-radius: 8px;
   overflow: hidden;
-  z-index: 2;
+  z-index: 1;
 }
 
 .progress-bar-fill {
@@ -718,7 +740,6 @@ onMounted(() => {
   background: rgb(var(--v-theme-primary));
   transition: width 0.1s linear;
   border-radius: 0;
-  z-index: 1;
 }
 
 .macos-button.disabled {

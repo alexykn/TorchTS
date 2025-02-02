@@ -149,24 +149,26 @@ export function useTTS() {
       currentSource.value.disconnect()
     }
 
+    // Resume audio context if suspended
+    if (audioContext.value.state === 'suspended') {
+      await audioContext.value.resume()
+    }
+
     currentSource.value = audioContext.value.createBufferSource()
     currentSource.value.buffer = unifiedBuffer
     currentSource.value.connect(gainNode.value)
     
-    if (!isPlaying.value) {
-      isGenerating.value = false
-      isPlaying.value = true
-    }
+    // Always set isPlaying to true when seeking
+    isGenerating.value = false
+    isPlaying.value = true
     
     startTime = audioContext.value.currentTime - targetTime
     currentSource.value.start(0, targetTime)
     requestAnimationFrame(updatePlaybackProgress)
     
     currentSource.value.onended = () => {
-      if (isPlaying.value) {
-        isPlaying.value = false
-        progressMessage.value = 'Playback complete!'
-      }
+      isPlaying.value = false
+      progressMessage.value = 'Playback complete!'
     }
   }
 
