@@ -36,9 +36,20 @@ torchts/
 
 ## Installation
 
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- npm 9+
+- espeak-ng (macOS, do not know about other operating systems, only tested on macOS)
+
+To install espeak-ng, run the following command:
+```bash
+brew install espeak-ng
+```
+
 ### Backend Setup (Python)
 
-1. Ensure you have Python 3.11+ installed
 2. Create and activate a virtual environment (recommended):
    ```bash
    python -m venv .venv
