@@ -132,28 +132,28 @@ export function useTTS() {
     if (!isPlaying.value || !audioContext.value) return
     
     const elapsed = audioContext.value.currentTime - startTime
-    currentTime.value = Math.min(totalDuration, elapsed)  // Update current time
+    currentTime.value = Math.min(totalDuration, elapsed)
     playbackProgress.value = Math.min(100, (elapsed / totalDuration) * 100)
     
+    // Always request next frame if playing
     if (isPlaying.value) {
       requestAnimationFrame(updatePlaybackProgress)
     }
   }
 
   function startProgressUpdates() {
-    // Clear any existing interval
-    if (progressInterval) {
-      clearInterval(progressInterval)
-    }
+    if (!isPlaying.value) return
     
-    // Start the updates
-    updatePlaybackProgress()
+    // Start the update cycle directly
+    requestAnimationFrame(updatePlaybackProgress)
   }
 
   function stopProgressUpdates() {
-    if (progressInterval) {
-      clearInterval(progressInterval)
-      progressInterval = null
+    // Just update the final position when stopping
+    if (audioContext.value) {
+      const elapsed = audioContext.value.currentTime - startTime
+      currentTime.value = Math.min(totalDuration, elapsed)
+      playbackProgress.value = Math.min(100, (elapsed / totalDuration) * 100)
     }
   }
 
@@ -370,19 +370,25 @@ export function useTTS() {
     }
   }
 
-  function togglePlayback() {
+  async function togglePlayback() {
     if (!currentSource.value) return
     
     if (isPlaying.value) {
-      audioContext.value.suspend()
+      // Pause playback
+      isPlaying.value = false  // Set state before suspending
+      await audioContext.value.suspend()
       pausedTime = audioContext.value.currentTime - startTime
       stopProgressUpdates()
     } else {
-      audioContext.value.resume()
+      // Resume playback
+      await audioContext.value.resume()
+      // Update the start time to maintain correct position after resume
       startTime = audioContext.value.currentTime - pausedTime
-      startProgressUpdates()
+      isPlaying.value = true  // Set state before starting updates
+      if (isDownloadComplete.value) {
+        requestAnimationFrame(updatePlaybackProgress)  // Start the update cycle
+      }
     }
-    isPlaying.value = !isPlaying.value
   }
 
   function reset() {
