@@ -14,6 +14,7 @@ export function useTTS() {
   const currentChunkIndex = ref(0)
   const playbackProgress = ref(0)  // 0 to 100
   const isDownloadComplete = ref(false)
+  const audioDuration = ref(0)
   let totalChunks = 0
   let validatedTotalChunks = null
   let isFetching = false
@@ -55,12 +56,10 @@ export function useTTS() {
   }
 
   async function createUnifiedBuffer() {
-    const sortedBuffers = Array.from({ length: validatedTotalChunks }, (_, i) => chunkCache.get(i))
-    if (sortedBuffers.some(buffer => !buffer)) {
-      throw new Error('Missing audio chunks')
-    }
-    unifiedBuffer = concatenateAudioBuffers(sortedBuffers)
+    const audioBuffers = Array.from(chunkCache.values())
+    unifiedBuffer = concatenateAudioBuffers(audioBuffers)
     totalDuration = unifiedBuffer.duration
+    audioDuration.value = totalDuration
     return unifiedBuffer
   }
 
@@ -500,6 +499,7 @@ export function useTTS() {
     reset,
     setVolume,
     seekToPosition,
-    downloadAudio
+    downloadAudio,
+    audioDuration
   }
 } 

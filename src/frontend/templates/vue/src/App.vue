@@ -355,6 +355,9 @@
                       class="progress-bar-fill"
                       :style="{ width: `${playbackProgress}%` }"
                     ></div>
+                    <div class="time-counter">
+                      {{ formatTime(currentTime) }}/{{ formatTime(totalDuration) }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -399,7 +402,8 @@ const {
   playbackProgress,
   isDownloadComplete,
   seekToPosition,
-  downloadAudio
+  downloadAudio,
+  audioDuration
 } = useTTS()
 
 const {
@@ -440,6 +444,10 @@ const selectedProfile = ref(localStorage.getItem('selectedProfileId') ? parseInt
 // Add new state for dialogs
 const showDeleteFilesDialog = ref(false)
 const showDeleteProfileDialog = ref(false)
+
+// Add time tracking state
+const currentTime = ref(0)
+const totalDuration = ref(0)
 
 // Methods
 async function processFile(file) {
@@ -505,12 +513,38 @@ function resetAll() {
   }
 }
 
+// Add time formatting function
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+// Update the handleSeek function to update currentTime
 function handleSeek(event) {
   const position = parseFloat(event.target.value)
   if (!isNaN(position)) {
     seekToPosition(position)
+    currentTime.value = (position / 100) * totalDuration.value
   }
 }
+
+// Watch playbackProgress to update currentTime
+watch(playbackProgress, (newProgress) => {
+  if (audioDuration.value > 0) {
+    currentTime.value = (newProgress / 100) * audioDuration.value
+  }
+})
+
+// Watch currentSource to update totalDuration
+watch(currentSource, (newSource) => {
+  if (newSource) {
+    totalDuration.value = audioDuration.value
+  } else {
+    totalDuration.value = 0
+    currentTime.value = 0
+  }
+})
 
 // Watch volume changes
 watch(volume, (newValue) => {
@@ -1029,6 +1063,9 @@ async function handleDeleteProfile() {
   border-radius: 8px;
   overflow: hidden;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .progress-bar-fill {
@@ -1062,5 +1099,15 @@ async function handleDeleteProfile() {
 
 .cursor-pointer:hover {
   background: rgba(var(--v-theme-primary), 0.05) !important;
+}
+
+.time-counter {
+  position: relative;
+  z-index: 2;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 </style>
