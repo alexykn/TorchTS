@@ -11,3 +11,4 @@ python-multipart~=0.0.20
 soundfile~=0.13.1
 kokoro~=0.3.3
 misaki~=0.6.4
+sqlalchemy~=2.0.37

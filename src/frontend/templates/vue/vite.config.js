@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
-      '/generate': 'http://localhost:5005'
+      '/generate': 'http://localhost:5005',
+      '/profiles': 'http://localhost:5005'
     },
     hmr: {
       overlay: true

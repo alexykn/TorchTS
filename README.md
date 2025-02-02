@@ -13,44 +13,53 @@ TorchTS is a text-to-speech application built with Python and Vue.js. It provide
 - **Text Processing:** Text handling and chunking utilities
 - **Document Support:** Parse and extract text from PDF, DOCX, ODT, and markdown files
 - **Audio Generation:** Text-to-speech conversion using Kokoro TTS
+- **Profile Management:** Create and manage profiles with customizable voice and volume settings
+- **File Management:** Upload, store, and organize files within profiles
 - **RESTful API:** FastAPI backend endpoints for file processing and audio generation
 - **Modern Interface:** Vue.js frontend with Vuetify components for a responsive design
 
 ## Project Structure
 
 ```
-/Users/alxknt/Github/torchts
+torchts/
 ├── requirements.txt           # Python dependencies
-├── src
-│   └── torchts
-│       ├── api.py            # API endpoint definitions
-│       ├── audio_generator.py # Audio generation utilities
-│       ├── document_parser.py # Document parsing utilities
-│       ├── text_processor.py  # Text processing functionalities
-│       ├── main.py           # Main entry point for backend
-│       └── templates
-│           └── vue           # Frontend application
+├── src/
+│   ├── backend/              # Python backend
+│   │   ├── api/             # API endpoints and routing
+│   │   ├── storage/         # Database models and storage
+│   │   ├── processing/      # Text and audio processing
+│   │   └── main.py         # Main entry point
+│   └── frontend/            # Frontend applications
+│       └── templates/
+│           └── vue/        # Vue.js application
 ```
 
 ## Installation
 
-### Backend Setup (Python)1
+### Backend Setup (Python)
 
 1. Ensure you have Python 3.11+ installed
-2. Install dependencies:
+2. Create and activate a virtual environment (recommended):
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Unix/macOS
+   # or
+   .venv\Scripts\activate     # On Windows
+   ```
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Start the backend server:
+4. Start the backend server:
    ```bash
-   python src/torchts/main.py
+   python src/backend/main.py
    ```
 
 ### Frontend Setup (Vue.js)
 
 1. Navigate to the Vue directory:
    ```bash
-   cd src/torchts/templates/vue
+   cd src/frontend/templates/vue
    ```
 2. Install dependencies:
    ```bash
@@ -63,7 +72,21 @@ TorchTS is a text-to-speech application built with Python and Vue.js. It provide
 
 ## Usage
 
-Access the web interface at `http://localhost:5173` after starting both the backend and frontend servers. Upload text or documents and select your preferred voice to generate speech.
+1. Access the web interface at `http://localhost:5173` after starting both the backend and frontend servers.
+2. Create a profile by clicking "Create New Profile" and setting your preferred voice and volume settings.
+3. Upload text or documents to your profile using the file upload area.
+4. Click on any uploaded file to load its content into the text editor.
+5. Adjust voice settings if needed and click "Convert to Speech" to generate audio.
+6. Use the profile settings (cogwheel icon) to manage your files and profile.
+
+### Profile Management
+
+- **Create Profile:** Set up profiles with custom voice presets and volume settings
+- **Upload Files:** Each profile maintains its own collection of uploaded files
+- **File Organization:** Files are stored per profile for better organization
+- **Profile Settings:** Access profile settings via the cogwheel icon to:
+  - Delete all files in the profile
+  - Delete the entire profile and its associated files
 
 ## Contributing
 

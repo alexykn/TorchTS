@@ -42,19 +42,26 @@
             </div>
           </div>
           
-          <div v-if="uploadedFile" class="mt-4">
-            <v-card variant="outlined" class="file-info">
+          <div v-if="uploadedFiles.length > 0" class="mt-4">
+            <v-card 
+              v-for="file in uploadedFiles" 
+              :key="file.id" 
+              variant="outlined" 
+              class="file-info mb-2"
+              :class="{ 'cursor-pointer': true }"
+              @click="handleFileClick(file)"
+            >
               <v-card-text>
                 <div class="d-flex align-center justify-space-between">
                   <div>
-                    <div class="text-subtitle-2">{{ uploadedFile.name }}</div>
-                    <div class="text-caption">{{ uploadedFile.pages }} pages</div>
+                    <div class="text-subtitle-2">{{ file.name }}</div>
+                    <div class="text-caption">{{ file.pages }} pages</div>
                   </div>
                   <v-btn
                     icon="mdi-close"
                     variant="text"
                     size="small"
-                    @click="clearFile"
+                    @click.stop="handleFileDelete(file.id)"
                   ></v-btn>
                 </div>
               </v-card-text>
@@ -62,6 +69,162 @@
           </div>
         </v-card-text>
       </v-card>
+
+      <div class="profile-section">
+        <v-card flat class="pa-4">
+          <v-card-text>
+            <div class="d-flex align-center">
+              <v-select
+                v-model="selectedProfile"
+                :items="profiles"
+                item-title="name"
+                item-value="id"
+                label="Select Profile"
+                density="compact"
+                hide-details
+                class="flex-grow-1"
+                @update:model-value="handleProfileSelect"
+              ></v-select>
+
+              <v-menu v-if="selectedProfile">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    icon="mdi-cog"
+                    variant="text"
+                    size="small"
+                    class="ml-2"
+                    v-bind="props"
+                  ></v-btn>
+                </template>
+
+                <v-list>
+                  <v-list-item
+                    @click="showDeleteFilesDialog = true"
+                    prepend-icon="mdi-delete-sweep"
+                  >
+                    <v-list-item-title>Delete All Files</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item
+                    @click="showDeleteProfileDialog = true"
+                    prepend-icon="mdi-account-remove"
+                    color="error"
+                  >
+                    <v-list-item-title>Delete Profile</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+            
+            <v-dialog v-model="showNewProfileDialog" max-width="400px">
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  block
+                  color="primary"
+                  class="mt-2"
+                  v-bind="props"
+                >
+                  Create New Profile
+                </v-btn>
+              </template>
+              
+              <v-card>
+                <v-card-title>New Profile</v-card-title>
+                <v-card-text>
+                  <v-text-field
+                    v-model="newProfileName"
+                    label="Profile Name"
+                    required
+                  ></v-text-field>
+                  <v-select
+                    v-model="newProfileVoice"
+                    :items="VOICE_OPTIONS"
+                    label="Default Voice"
+                    item-title="label"
+                    item-value="value"
+                  ></v-select>
+                  <v-slider
+                    v-model="newProfileVolume"
+                    label="Default Volume"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    thumb-label
+                  ></v-slider>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    color="primary"
+                    text
+                    @click="createProfile"
+                    :disabled="!newProfileName"
+                  >
+                    Create
+                  </v-btn>
+                  <v-btn
+                    text
+                    @click="showNewProfileDialog = false"
+                  >
+                    Cancel
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+
+            <!-- Delete Files Confirmation Dialog -->
+            <v-dialog v-model="showDeleteFilesDialog" max-width="400px">
+              <v-card>
+                <v-card-title>Delete All Files</v-card-title>
+                <v-card-text>
+                  Are you sure you want to delete all files from this profile? This action cannot be undone.
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    color="error"
+                    text
+                    @click="handleDeleteAllFiles"
+                  >
+                    Delete All
+                  </v-btn>
+                  <v-btn
+                    text
+                    @click="showDeleteFilesDialog = false"
+                  >
+                    Cancel
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+
+            <!-- Delete Profile Confirmation Dialog -->
+            <v-dialog v-model="showDeleteProfileDialog" max-width="400px">
+              <v-card>
+                <v-card-title>Delete Profile</v-card-title>
+                <v-card-text>
+                  Are you sure you want to delete this profile? All associated files will be permanently deleted. This action cannot be undone.
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    color="error"
+                    text
+                    @click="handleDeleteProfile"
+                  >
+                    Delete Profile
+                  </v-btn>
+                  <v-btn
+                    text
+                    @click="showDeleteProfileDialog = false"
+                  >
+                    Cancel
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+          </v-card-text>
+        </v-card>
+      </div>
     </v-navigation-drawer>
 
     <v-main>
@@ -208,8 +371,10 @@ import { ref, watch, computed, onMounted } from 'vue'
 import { useTTS } from './composables/useTTS'
 import { useFileUpload } from './composables/useFileUpload'
 import { useTheme } from './composables/useTheme'
+import { useProfiles } from './composables/useProfile'
 import { VOICE_OPTIONS, DEFAULT_VOICE, DEFAULT_VOLUME } from './constants/voices'
 import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from './constants/files'
+import { API_ENDPOINTS } from './constants/api'
 import './assets/global.css'
 
 // State
@@ -238,11 +403,14 @@ const {
 } = useTTS()
 
 const {
-  uploadedFile,
+  uploadedFiles,
   progressMessage: fileProgress,
   isDragging,
   uploadFile,
-  clearFile
+  deleteFile,
+  deleteAllFiles,
+  clearFiles,
+  setFiles
 } = useFileUpload()
 
 const {
@@ -250,15 +418,37 @@ const {
   toggleTheme
 } = useTheme()
 
+const {
+  profiles,
+  currentProfile,
+  loadProfiles,
+  createProfile: createProfileAPI,
+  selectProfile: selectProfileAPI,
+  deleteProfile
+} = useProfiles()
+
 // Computed progress message (combines File and TTS progress)
 const progressMessage = computed(() => ttsProgress.value || fileProgress.value)
 
+// Add new profile-related state
+const showNewProfileDialog = ref(false)
+const newProfileName = ref('')
+const newProfileVoice = ref(DEFAULT_VOICE)
+const newProfileVolume = ref(DEFAULT_VOLUME)
+const selectedProfile = ref(localStorage.getItem('selectedProfileId') ? parseInt(localStorage.getItem('selectedProfileId')) : null)
+
+// Add new state for dialogs
+const showDeleteFilesDialog = ref(false)
+const showDeleteProfileDialog = ref(false)
+
 // Methods
 async function processFile(file) {
-  if (file) {
+  if (file && selectedProfile.value) {
     try {
-      const extractedText = await uploadFile(file)
-      text.value = extractedText
+      const extractedText = await uploadFile(file, selectedProfile.value)
+      if (extractedText) {
+        text.value = extractedText
+      }
     } catch (error) {
       // Error is already handled in useFileUpload
       if (fileInput.value) {
@@ -309,7 +499,7 @@ function togglePlayback() {
 function resetAll() {
   text.value = ''
   resetTTS()
-  clearFile()
+  clearFiles()
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -335,6 +525,105 @@ onMounted(() => {
     volumeSlider.style.setProperty('--volume-percentage', `${volume.value * 100}%`)
   }
 })
+
+// Load profiles on mount
+onMounted(async () => {
+  await loadProfiles()
+  if (selectedProfile.value) {
+    await handleProfileSelect(selectedProfile.value)
+  }
+})
+
+// Profile management methods
+async function createProfile() {
+  try {
+    const profile = await createProfileAPI(
+      newProfileName.value,
+      newProfileVoice.value,
+      newProfileVolume.value
+    )
+    selectedProfile.value = profile.id
+    showNewProfileDialog.value = false
+    newProfileName.value = ''
+    newProfileVoice.value = DEFAULT_VOICE
+    newProfileVolume.value = DEFAULT_VOLUME
+  } catch (error) {
+    console.error('Error creating profile:', error)
+  }
+}
+
+async function handleProfileSelect(profileId) {
+  if (profileId) {
+    try {
+      localStorage.setItem('selectedProfileId', profileId)
+      const profileData = await selectProfileAPI(profileId)
+      // Update voice and volume based on profile
+      voice.value = profileData.profile.voice_preset || DEFAULT_VOICE
+      volume.value = profileData.profile.volume || DEFAULT_VOLUME
+      // Set the files from the profile
+      setFiles(profileData.files.map(f => ({
+        ...f,
+        name: f.filename, // Ensure filename is mapped to name for consistency
+        type: f.file_type
+      })))
+    } catch (error) {
+      console.error('Error selecting profile:', error)
+    }
+  }
+}
+
+async function handleFileDelete(fileId) {
+  if (selectedProfile.value) {
+    try {
+      await deleteFile(selectedProfile.value, fileId)
+    } catch (error) {
+      console.error('Error deleting file:', error)
+    }
+  }
+}
+
+// Add click handler for files
+async function handleFileClick(file) {
+  if (!selectedProfile.value) return;
+  
+  try {
+    const response = await fetch(API_ENDPOINTS.PROFILE_FILE(selectedProfile.value, file.id))
+    if (!response.ok) {
+      throw new Error('Failed to fetch file content')
+    }
+    const data = await response.json()
+    if (data && data.content) {
+      text.value = data.content
+    }
+  } catch (error) {
+    console.error('Error loading file content:', error)
+  }
+}
+
+// Add new methods for deletion
+async function handleDeleteAllFiles() {
+  if (!selectedProfile.value) return;
+  
+  try {
+    await deleteAllFiles(selectedProfile.value)
+    showDeleteFilesDialog.value = false
+  } catch (error) {
+    console.error('Error deleting files:', error)
+  }
+}
+
+async function handleDeleteProfile() {
+  if (!selectedProfile.value) return;
+  
+  try {
+    await deleteProfile(selectedProfile.value)
+    selectedProfile.value = null
+    localStorage.removeItem('selectedProfileId')
+    showDeleteProfileDialog.value = false
+  } catch (error) {
+    console.error('Error deleting profile:', error)
+  }
+}
 </script>
 
 <style>
@@ -348,6 +637,15 @@ onMounted(() => {
 
 .file-sidebar {
   border-right: 1px solid rgb(var(--v-theme-surface-variant));
+  background: rgb(var(--v-theme-surface));
+  position: relative;
+}
+
+.profile-section {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: rgb(var(--v-theme-surface));
 }
 
@@ -638,6 +936,7 @@ onMounted(() => {
 
 .file-info {
   background: rgb(var(--v-theme-surface-variant));
+  transition: background 0.2s ease;
 }
 
 .file-info .v-card-text {
@@ -750,5 +1049,18 @@ onMounted(() => {
 
 .macos-button.disabled:hover {
   background: rgb(var(--v-theme-surface-variant));
+}
+
+/* Add any new styles needed for profile management */
+.v-dialog {
+  border-radius: 8px;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  background: rgba(var(--v-theme-primary), 0.05) !important;
 }
 </style>

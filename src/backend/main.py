@@ -18,7 +18,7 @@ pipelines = {
 
 if __name__ == "__main__":
     try:
-        from api import app
+        from api.api import app
         # Start the FastAPI server
         rprint("[green]INFO:     OK[/green]")
         uvicorn.run(app, host="0.0.0.0", port=5005)
