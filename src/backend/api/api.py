@@ -195,8 +195,9 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/generate")
 async def generate_audio(request: TTSRequest):
     try:
-        # Super simple session ID - just use the voice and first 32 chars of text
-        session_id = f"{request.voice}_{request.text[:32]}"
+        # Create session ID using hashlib
+        session_data = f"{request.voice}_{request.text[:32]}".encode('utf-8')
+        session_id = hashlib.md5(session_data).hexdigest()
         
         # Only reject if this session was explicitly cancelled
         if session_id in active_generations:
