@@ -102,6 +102,12 @@ brew install espeak-ng
 5. Adjust voice settings if needed and click "Convert to Speech" to generate audio.
 6. Use the profile settings (cogwheel icon) to manage your files and profile.
 
+### Keyboard Controls
+
+- **Space**: Play/Pause audio
+- **←/→**: Seek backward/forward 5 seconds
+- **↑/↓**: Increase/decrease volume by 5%
+
 ### Profile Management
 
 - **Create Profile:** Set up profiles with custom voice presets and volume settings
