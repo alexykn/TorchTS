@@ -1,0 +1,57 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    espeak \
+    build-essential \
+    python3-dev \
+    pkg-config \
+    git \
+    # Required for some Python packages with C extensions
+    gcc \
+    # Additional dependencies
+    zlib1g-dev \
+    libpng-dev \
+    # Scientific computing dependencies
+    gfortran \
+    libopenblas-dev \
+    liblapack-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Set environment variables for numpy/scipy build
+ENV OPENBLAS=/usr/lib/libopenblas.so
+ENV LAPACK=/usr/lib/liblapack.so
+ENV BLAS=/usr/lib/libblas.so
+ENV BLIS_ARCH="generic"
+
+# Install uv
+RUN pip install uv
+
+# Create virtual environment
+RUN uv venv -p3.11
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install numpy first as it's a build dependency for many packages
+RUN . .venv/bin/activate && uv pip install numpy pip
+
+# Install spaCy using pre-built wheel before other requirements
+RUN . .venv/bin/activate && uv pip install --no-deps spacy==3.7.2
+
+# Install the rest of the requirements
+RUN . .venv/bin/activate && uv pip install --prerelease=allow -r requirements.txt
+
+# Copy the backend code
+COPY src/backend ./src/backend
+
+# Create necessary directories
+RUN mkdir -p data/audio data/files
+
+# Set the working directory to where main.py is
+WORKDIR /app/src/backend
+
+# Command to run the application using the virtual environment's Python
+CMD ["/app/.venv/bin/python", "main.py"] 

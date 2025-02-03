@@ -31,7 +31,7 @@ app = FastAPI(
 # Enable CORS for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5005", "http://0.0.0.0:5005"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5005", "http://0.0.0.0:5005", "https://frontend.torchts.orb.local", "https://backend.torchts.orb.local"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

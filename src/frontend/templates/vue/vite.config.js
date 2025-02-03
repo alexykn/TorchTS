@@ -1,17 +1,26 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+const backendUrl = process.env.DOCKER_ENV 
+  ? 'http://backend:5005'
+  : 'http://localhost:5005'
+
 export default defineConfig({
   plugins: [vue()],
   server: {
     proxy: {
-      '/generate': 'http://localhost:5005',
-      '/profiles': 'http://localhost:5005'
+      '/generate': backendUrl,
+      '/profiles': backendUrl
     },
     hmr: {
       overlay: true
     },
-    host: true
+    host: true,
+    allowedHosts: [
+      'localhost',
+      '*.orb.local',
+      'frontend.torchts.orb.local'
+    ]
   },
   resolve: {
     alias: {

@@ -1,0 +1,31 @@
+name: torchts
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./data:/app/data
+      - ./src/backend:/app/src/backend
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src/frontend/templates/vue/src:/app/src
+      - ./src/frontend/templates/vue/public:/app/public
+    environment:
+      - VITE_API_URL=http://backend:5005
+      - DOCKER_ENV=true
+    depends_on:
+      - backend
+    restart: unless-stopped 
