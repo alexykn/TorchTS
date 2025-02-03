@@ -201,6 +201,12 @@ export function useTTS() {
         currentSource.value.start(0, newTime)
         startProgressUpdates()
       }
+      
+      currentSource.value.onended = () => {
+        isPlaying.value = false
+        progressMessage.value = 'Playback complete!'
+        stopProgressUpdates()
+      }
     }
   }
 
