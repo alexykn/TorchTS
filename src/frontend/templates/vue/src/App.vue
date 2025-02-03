@@ -667,11 +667,6 @@ function handleKeydown(event) {
       const newVolumeUp = Math.min(100, volume.value + 5)
       volume.value = newVolumeUp
       setVolume(newVolumeUp / 100)
-      // Update slider visual
-      const sliderUp = document.querySelector('.macos-slider')
-      if (sliderUp) {
-        sliderUp.style.setProperty('--volume-percentage', `${newVolumeUp}%`)
-      }
       break
       
     case 'ArrowDown':
@@ -679,23 +674,18 @@ function handleKeydown(event) {
       const newVolumeDown = Math.max(0, volume.value - 5)
       volume.value = newVolumeDown
       setVolume(newVolumeDown / 100)
-      // Update slider visual
-      const sliderDown = document.querySelector('.macos-slider')
-      if (sliderDown) {
-        sliderDown.style.setProperty('--volume-percentage', `${newVolumeDown}%`)
-      }
       break
       
     case 'ArrowLeft':
       event.preventDefault()
-      if (currentSource.value) {
+      if (currentSource.value && isDownloadComplete.value) {
         seekRelative(-5) // Seek back 5 seconds
       }
       break
       
     case 'ArrowRight':
       event.preventDefault()
-      if (currentSource.value) {
+      if (currentSource.value && isDownloadComplete.value) {
         seekRelative(5) // Seek forward 5 seconds
       }
       break
@@ -704,7 +694,6 @@ function handleKeydown(event) {
 
 // Add event listeners on mount and clean up on unmount
 onMounted(() => {
-  // ... existing onMounted code ...
   window.addEventListener('keydown', handleKeydown)
 })
 

@@ -26,6 +26,8 @@ export function useTTS() {
   let progressInterval = null  // Add interval reference
   let currentSessionId = null  // Add session ID tracking, mutable so we can update it
   let currentAbortController = null
+  // NEW: hold the latest seek time independent of currentTime when paused
+  let currentSeek = 0
 
   function initAudio() {
     if (!audioContext.value) {
@@ -187,27 +189,28 @@ export function useTTS() {
       currentSource.value.buffer = unifiedBuffer
       currentSource.value.connect(gainNode.value)
       
+      // Save the current seek position
+      currentSeek = newTime
+      
+      // Update time tracking regardless of play state
+      startTime = audioContext.value.currentTime - newTime
+      currentTime.value = newTime
+      playbackProgress.value = boundedPosition
+      
       if (isPlaying.value) {
         currentSource.value.start(0, newTime)
-        startTime = audioContext.value.currentTime - newTime
         startProgressUpdates()
-        
-        currentSource.value.onended = () => {
-          isPlaying.value = false
-          progressMessage.value = 'Playback complete!'
-          stopProgressUpdates()
-        }
       }
     }
   }
 
-  // Add new helper for keyboard seeking
+  // Update seekRelative to handle paused state with proper 5-second steps
   function seekRelative(offsetSeconds) {
     if (unifiedBuffer && isDownloadComplete.value) {
-      const currentPosition = (playbackProgress.value / 100) * totalDuration
-      const newPosition = currentPosition + offsetSeconds
-      const newPercentage = (newPosition / totalDuration) * 100
-      seekToPosition(newPercentage)
+      // Now use currentSeek instead of currentTime.value so that we accumulate 5-second steps correctly
+      const newTime = Math.max(0, Math.min(totalDuration, currentSeek + offsetSeconds))
+      const newPosition = (newTime / totalDuration) * 100
+      seekToPosition(newPosition)
     }
   }
 
