@@ -170,40 +170,44 @@ export function useTTS() {
     }
   }
 
-  async function seekToPosition(position) {
-    if (!isDownloadComplete.value || !unifiedBuffer) return
+  function seekToPosition(position) {
+    // Add a small helper to ensure position is within bounds
+    const boundedPosition = Math.max(0, Math.min(100, position))
     
-    const targetTime = (position / 100) * totalDuration
-    currentTime.value = targetTime  // Update current time when seeking
-    
-    if (currentSource.value) {
-      currentSource.value.onended = null
-      currentSource.value.stop()
-      currentSource.value.disconnect()
+    if (unifiedBuffer && isDownloadComplete.value) {
+      const newTime = (boundedPosition / 100) * totalDuration
+      
+      if (currentSource.value) {
+        currentSource.value.onended = null
+        currentSource.value.stop()
+        currentSource.value.disconnect()
+      }
+      
+      currentSource.value = audioContext.value.createBufferSource()
+      currentSource.value.buffer = unifiedBuffer
+      currentSource.value.connect(gainNode.value)
+      
+      if (isPlaying.value) {
+        currentSource.value.start(0, newTime)
+        startTime = audioContext.value.currentTime - newTime
+        startProgressUpdates()
+        
+        currentSource.value.onended = () => {
+          isPlaying.value = false
+          progressMessage.value = 'Playback complete!'
+          stopProgressUpdates()
+        }
+      }
     }
+  }
 
-    // Resume audio context if suspended
-    if (audioContext.value.state === 'suspended') {
-      await audioContext.value.resume()
-    }
-
-    currentSource.value = audioContext.value.createBufferSource()
-    currentSource.value.buffer = unifiedBuffer  // Set the buffer directly
-    currentSource.value.connect(gainNode.value)
-    
-    // Always set isPlaying to true when seeking
-    isGenerating.value = false
-    isPlaying.value = true
-    
-    startTime = audioContext.value.currentTime - targetTime
-    currentSource.value.start(0, targetTime)
-    startProgressUpdates()
-    
-    currentSource.value.onended = () => {
-      isPlaying.value = false
-      progressMessage.value = 'Playback complete!'
-      stopProgressUpdates()
-      currentTime.value = totalDuration  // Set to total duration when complete
+  // Add new helper for keyboard seeking
+  function seekRelative(offsetSeconds) {
+    if (unifiedBuffer && isDownloadComplete.value) {
+      const currentPosition = (playbackProgress.value / 100) * totalDuration
+      const newPosition = currentPosition + offsetSeconds
+      const newPercentage = (newPosition / totalDuration) * 100
+      seekToPosition(newPercentage)
     }
   }
 
@@ -598,6 +602,7 @@ export function useTTS() {
     downloadAudio,
     audioDuration,
     currentTime,
-    stopGeneration  // Export stopGeneration function
+    stopGeneration,  // Export stopGeneration function
+    seekRelative,    // Add this to exports
   }
 } 

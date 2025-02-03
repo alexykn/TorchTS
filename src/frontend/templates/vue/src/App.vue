@@ -370,7 +370,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useTTS } from './composables/useTTS'
 import { useFileUpload } from './composables/useFileUpload'
 import { useTheme } from './composables/useTheme'
@@ -405,7 +405,8 @@ const {
   downloadAudio,
   audioDuration,
   currentTime,
-  stopGeneration
+  stopGeneration,
+  seekRelative,
 } = useTTS()
 
 const {
@@ -645,6 +646,71 @@ async function handleDeleteProfile() {
     console.error('Error deleting profile:', error)
   }
 }
+
+// Add keyboard control handler
+function handleKeydown(event) {
+  // Only handle keyboard shortcuts if we're not in an input/textarea
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    return
+  }
+
+  switch (event.code) {
+    case 'Space':
+      event.preventDefault()
+      if (currentSource.value) {
+        togglePlayback()
+      }
+      break
+      
+    case 'ArrowUp':
+      event.preventDefault()
+      const newVolumeUp = Math.min(100, volume.value + 5)
+      volume.value = newVolumeUp
+      setVolume(newVolumeUp / 100)
+      // Update slider visual
+      const sliderUp = document.querySelector('.macos-slider')
+      if (sliderUp) {
+        sliderUp.style.setProperty('--volume-percentage', `${newVolumeUp}%`)
+      }
+      break
+      
+    case 'ArrowDown':
+      event.preventDefault()
+      const newVolumeDown = Math.max(0, volume.value - 5)
+      volume.value = newVolumeDown
+      setVolume(newVolumeDown / 100)
+      // Update slider visual
+      const sliderDown = document.querySelector('.macos-slider')
+      if (sliderDown) {
+        sliderDown.style.setProperty('--volume-percentage', `${newVolumeDown}%`)
+      }
+      break
+      
+    case 'ArrowLeft':
+      event.preventDefault()
+      if (currentSource.value) {
+        seekRelative(-5) // Seek back 5 seconds
+      }
+      break
+      
+    case 'ArrowRight':
+      event.preventDefault()
+      if (currentSource.value) {
+        seekRelative(5) // Seek forward 5 seconds
+      }
+      break
+  }
+}
+
+// Add event listeners on mount and clean up on unmount
+onMounted(() => {
+  // ... existing onMounted code ...
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style>
