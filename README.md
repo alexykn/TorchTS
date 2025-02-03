@@ -36,37 +36,49 @@ torchts/
 
 ## Installation
 
-### Prerequisites
+### Quick Start (Docker)
 
+1. Clone the repository
+2. Run the application:
+   ```bash
+   docker compose up -d
+   ```
+3. Access the web interface at `http://localhost:5173`
+
+That's it! Docker will automatically set up everything needed.
+
+### Development Setup
+
+#### Prerequisites
 - Python 3.11+
 - Node.js 18+
 - npm 9+
-- espeak-ng (macOS, do not know about other operating systems, only tested on macOS)
+- espeak-ng (macOS only)
 
-To install espeak-ng, run the following command:
+For local development on macOS, install espeak-ng:
 ```bash
 brew install espeak-ng
 ```
 
-### Backend Setup (Python)
+#### Backend Setup (Python)
 
-2. Create and activate a virtual environment (recommended):
+1. Create and activate a virtual environment (recommended):
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Unix/macOS
    # or
    .venv\Scripts\activate     # On Windows
    ```
-3. Install dependencies:
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-4. Start the backend server:
+3. Start the backend server:
    ```bash
    python src/backend/main.py
    ```
 
-### Frontend Setup (Vue.js)
+#### Frontend Setup (Vue.js)
 
 1. Navigate to the Vue directory:
    ```bash
