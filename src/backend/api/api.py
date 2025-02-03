@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from storage.models import engine, Profile, File as DBFile, AudioOutput
 from datetime import datetime
 import os
+import hashlib
 
 # Create directories for stored files
 os.makedirs('data/audio', exist_ok=True)
@@ -34,8 +35,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Total-Chunks", "X-Current-Chunk", "Content-Type", "Content-Length"]
+    expose_headers=["X-Total-Chunks", "X-Current-Chunk", "Content-Type", "Content-Length", "X-Session-ID"]
 )
+
+# Track active generation sessions
+active_generations = set()
 
 class TTSRequest(BaseModel):
     text: str
@@ -48,6 +52,9 @@ class ProfileCreate(BaseModel):
     name: str
     voice_preset: str | None = None
     volume: float = 0.8
+
+class StopGenerationRequest(BaseModel):
+    session_id: str
 
 @app.post("/profiles")
 async def create_profile(profile: ProfileCreate):
@@ -188,6 +195,18 @@ async def upload_file(file: UploadFile = File(...)):
 @app.post("/generate")
 async def generate_audio(request: TTSRequest):
     try:
+        # Super simple session ID - just use the voice and first 32 chars of text
+        session_id = f"{request.voice}_{request.text[:32]}"
+        
+        # Only reject if this session was explicitly cancelled
+        if session_id in active_generations:
+            if request.chunk_id == 0:  # If it's a restart of first chunk
+                active_generations.remove(session_id)
+                active_generations.add(session_id)
+        else:
+            # New session
+            active_generations.add(session_id)
+
         # Validate voice selection
         if not request.voice or len(request.voice) < 2:
             raise HTTPException(status_code=400, detail="Voice parameter must be provided in format: [a/b]_[name]")
@@ -211,13 +230,32 @@ async def generate_audio(request: TTSRequest):
         
         # Add debug logging
         print(f"Generating audio for chunk {request.chunk_id}, text length: {len(chunk)}")
+        print(f"Using session ID: {session_id}")
+        print(f"Total chunks: {len(chunks)}")
         
         all_audio = []
         try:
-            for _, _, audio in pipeline(chunk, voice=request.voice, speed=request.speed):
+            # Check if generation was already cancelled before starting
+            if session_id not in active_generations:
+                raise HTTPException(status_code=499, detail="Client cancelled request")
+
+            # Create generator but don't start it if already cancelled
+            audio_gen = pipeline(chunk, voice=request.voice, speed=request.speed)
+            
+            # Process each audio piece
+            for _, _, audio in audio_gen:
+                # Check if generation was cancelled
+                if session_id not in active_generations:
+                    # Try to stop the generator if possible
+                    if hasattr(audio_gen, 'close'):
+                        audio_gen.close()
+                    raise HTTPException(status_code=499, detail="Client cancelled request")
                 all_audio.append(audio)
                 print(f"Generated audio chunk, shape: {audio.shape}, dtype: {audio.dtype}")
         
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
         except Exception as e:
             print(f"Pipeline error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Audio generation failed: {str(e)}")
@@ -239,7 +277,8 @@ async def generate_audio(request: TTSRequest):
                 "X-Current-Chunk": str(request.chunk_id),
                 "Content-Type": "audio/wav",
                 "Cache-Control": "public, max-age=31536000",
-                "Accept-Ranges": "bytes"
+                "Accept-Ranges": "bytes",
+                "X-Session-ID": session_id
             }
             
             return StreamingResponse(
@@ -252,10 +291,31 @@ async def generate_audio(request: TTSRequest):
             raise HTTPException(status_code=500, detail=f"Audio processing failed: {str(e)}")
             
     except HTTPException as he:
+        # Clean up session on any error
+        if 'session_id' in locals():
+            active_generations.discard(session_id)
         raise he
     except Exception as e:
+        # Clean up session on any error
+        if 'session_id' in locals():
+            active_generations.discard(session_id)
         print(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/stop-generation")
+async def stop_generation(request: StopGenerationRequest):
+    """Stop an ongoing TTS generation session"""
+    try:
+        if request.session_id in active_generations:
+            active_generations.discard(request.session_id)
+            print(f"Successfully stopped generation for session {request.session_id}")
+            return {"message": "Generation stopped successfully", "session_id": request.session_id}
+        else:
+            print(f"No active generation found for session {request.session_id}")
+            return {"message": "No active generation found for this session", "session_id": request.session_id}
+    except Exception as e:
+        print(f"Error stopping generation for session {request.session_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error stopping generation: {str(e)}")
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):

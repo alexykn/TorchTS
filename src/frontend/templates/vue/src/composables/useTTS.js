@@ -24,6 +24,8 @@ export function useTTS() {
   let totalDuration = 0
   let unifiedBuffer = null
   let progressInterval = null  // Add interval reference
+  let currentSessionId = null  // Add session ID tracking, mutable so we can update it
+  let currentAbortController = null
 
   function initAudio() {
     if (!audioContext.value) {
@@ -68,12 +70,12 @@ export function useTTS() {
   async function fetchAudioChunk(text, voice, chunkId, retryCount = 0) {
     try {
       progressMessage.value = `Fetching chunk ${chunkId + 1}/${totalChunks}...`
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+      currentAbortController = new AbortController()
+      const timeoutId = setTimeout(() => currentAbortController.abort(), 10000) // 10s timeout
 
       const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH, {
         method: 'POST',
-        signal: controller.signal,
+        signal: currentAbortController.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text, 
@@ -92,7 +94,12 @@ export function useTTS() {
       
       const currentChunk = parseInt(response.headers.get('X-Current-Chunk'))
       const newTotalChunks = parseInt(response.headers.get('X-Total-Chunks'))
+      const sessionId = response.headers.get('X-Session-ID')
       
+      if (sessionId) {
+        currentSessionId = sessionId
+      }
+
       if (currentChunk === undefined || newTotalChunks === undefined) {
         throw new Error('Invalid chunk information from server')
       }
@@ -119,6 +126,12 @@ export function useTTS() {
         totalChunks: validatedTotalChunks
       }
     } catch (error) {
+      // If the request was aborted or generation was cancelled, don't retry
+      if (error.name === 'AbortError' || error.message.includes('cancelled')) {
+        console.warn(`Fetch for chunk ${chunkId} aborted/cancelled`)
+        throw error  // Re-throw to stop the chunk fetching process
+      }
+      
       if (retryCount < 3) {
         console.warn(`Retrying chunk ${chunkId} (attempt ${retryCount + 1}): ${error.message}`)
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
@@ -175,7 +188,7 @@ export function useTTS() {
     }
 
     currentSource.value = audioContext.value.createBufferSource()
-    currentSource.value.buffer = unifiedBuffer
+    currentSource.value.buffer = unifiedBuffer  // Set the buffer directly
     currentSource.value.connect(gainNode.value)
     
     // Always set isPlaying to true when seeking
@@ -195,33 +208,49 @@ export function useTTS() {
   }
 
   async function fetchNextChunks(text, voice) {
-    if (isFetching || currentChunkIndex.value >= totalChunks) return
+    if (isFetching || currentChunkIndex.value >= totalChunks || !isGenerating.value) return
     
     isFetching = true
     try {
-      while (currentChunkIndex.value < totalChunks) {
+      // Fetch chunks sequentially but aggressively
+      while (currentChunkIndex.value < totalChunks && isGenerating.value) {
         const nextChunkId = currentChunkIndex.value
+        
+        // If we don't have this chunk yet, fetch it
         if (!chunkCache.has(nextChunkId)) {
           const chunk = await fetchAudioChunk(text, voice, nextChunkId)
-          if (audioQueue.length === 0 && !unifiedBuffer) {
+          if (!unifiedBuffer && chunk) {
             audioQueue.push(chunk.buffer)
           }
+        } else if (!unifiedBuffer) {
+          // If chunk is in cache but not queued, queue it
+          audioQueue.push(chunkCache.get(nextChunkId))
         }
+        
         currentChunkIndex.value++
       }
       
       // Create unified buffer once all chunks are downloaded
-      await createUnifiedBuffer()
-      isDownloadComplete.value = true
-      
-      // If we're currently playing, switch to the unified buffer
-      if (isPlaying.value) {
-        const currentTime = audioContext.value.currentTime - startTime
-        seekToPosition((currentTime / totalDuration) * 100)
+      if (isGenerating.value && currentChunkIndex.value >= totalChunks && chunkCache.size === totalChunks) {
+        await createUnifiedBuffer()
+        isDownloadComplete.value = true
+        
+        // If we're currently playing, switch to the unified buffer
+        if (isPlaying.value) {
+          const currentTime = audioContext.value.currentTime - startTime
+          seekToPosition((currentTime / totalDuration) * 100)
+        }
       }
     } catch (error) {
-      console.error('Error fetching chunks:', error)
-      progressMessage.value = `Error: ${error.message}`
+      // Don't show errors for intentional cancellation
+      if (error.name === 'AbortError' || error.message.includes('cancelled')) {
+        console.log('Generation stopped by user')
+        isGenerating.value = false
+        progressMessage.value = ''
+      } else {
+        console.error('Error fetching chunks:', error)
+        progressMessage.value = `Error: ${error.message}`
+      }
     } finally {
       isFetching = false
     }
@@ -236,7 +265,6 @@ export function useTTS() {
         currentSource.value.connect(gainNode.value)
         
         if (!isPlaying.value) {
-          isGenerating.value = false
           isPlaying.value = true
           startTime = audioContext.value.currentTime
         }
@@ -261,15 +289,6 @@ export function useTTS() {
       if (nextChunkBuffer) {
         audioQueue.push(nextChunkBuffer)
         currentChunkIndex.value++
-      } else if (currentChunkIndex.value < validatedTotalChunks && !isFetching) {
-        await fetchNextChunks(text, voice)
-        return
-      } else if (currentChunkIndex.value >= validatedTotalChunks && !currentSource.value) {
-        isGenerating.value = false
-        isPlaying.value = false
-        progressMessage.value = 'Playback complete!'
-        stopProgressUpdates()
-        return
       }
     }
 
@@ -286,7 +305,6 @@ export function useTTS() {
       currentSource.value.connect(gainNode.value)
 
       if (!isPlaying.value) {
-        isGenerating.value = false
         isPlaying.value = true
         startTime = audioContext.value.currentTime - pausedTime
         startProgressUpdates()
@@ -297,6 +315,11 @@ export function useTTS() {
         if (isPlaying.value) {
           playNextChunk(text, voice)
         }
+      }
+      
+      // Always try to fetch more chunks if we haven't completed downloading
+      if (!isDownloadComplete.value) {
+        fetchNextChunks(text, voice)
       }
     }
   }
@@ -339,22 +362,25 @@ export function useTTS() {
       totalChunks = firstChunk.totalChunks
       audioQueue.push(firstChunk.buffer)
       currentChunkIndex.value++
+
+      // Ensure currentSessionId is set, using the same logic as backend
+      if (!currentSessionId) {
+        currentSessionId = `${voice}_${text.slice(0, 32)}`
+        console.log('Computed session ID:', currentSessionId)
+      }
       
       // If there's only one chunk, mark as complete immediately
       if (totalChunks === 1) {
         await createUnifiedBuffer()
         isDownloadComplete.value = true
+      } else {
+        // Start fetching remaining chunks immediately
+        fetchNextChunks(text, voice)
       }
       
       // Start playback of first chunk
       await playNextChunk(text, voice)
       
-      // Start fetching remaining chunks if any
-      if (totalChunks > 1) {
-        fetchNextChunks(text, voice)
-      }
-      
-      isPlaying.value = true
     } catch (error) {
       console.error('Error during speech generation:', error)
       progressMessage.value = `Error: ${error.message}`
@@ -391,8 +417,42 @@ export function useTTS() {
     }
   }
 
-  function reset() {
+  async function stopGeneration() {
+    if (currentAbortController) {
+      console.log('Aborting pending fetch...')
+      currentAbortController.abort()
+      currentAbortController = null
+    }
+    // Always send a stop-generation request, even if no active session
+    const sessionToStop = currentSessionId || ""
+    try {
+      const response = await fetch(API_ENDPOINTS.STOP_GENERATION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionToStop })
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Error stopping generation:', errorData.error)
+      } else {
+        console.log('Stop generation request sent for session:', sessionToStop)
+      }
+    } catch (error) {
+      console.error('Error stopping generation:', error)
+    } finally {
+      currentSessionId = null
+    }
+  }
+
+  async function reset() {
+    // First stop any ongoing generation
+    if (currentSessionId || currentAbortController) {
+      await stopGeneration()
+    }
+    isGenerating.value = false  // Ensure generating state is cleared
+    
     if (currentSource.value) {
+      currentSource.value.onended = null  // Remove event listener
       currentSource.value.stop()
       currentSource.value.disconnect()
       currentSource.value = null
@@ -401,6 +461,7 @@ export function useTTS() {
       audioContext.value.close()
       audioContext.value = null
     }
+    
     gainNode.value = null
     progressMessage.value = ''
     isPlaying.value = false
@@ -415,8 +476,8 @@ export function useTTS() {
     startTime = 0
     pausedTime = 0
     unifiedBuffer = null
-    currentTime.value = 0  // Reset current time
-    stopProgressUpdates()  // Stop progress updates
+    currentTime.value = 0
+    stopProgressUpdates()
     chunkCache.clear()
   }
 
@@ -536,6 +597,7 @@ export function useTTS() {
     seekToPosition,
     downloadAudio,
     audioDuration,
-    currentTime  // Export current time
+    currentTime,
+    stopGeneration  // Export stopGeneration function
   }
 } 

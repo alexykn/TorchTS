@@ -291,7 +291,7 @@
               <span>Pause</span>
             </button>
             <button 
-              v-else-if="currentSource && !isGenerating"
+              v-else-if="currentSource"
               class="macos-button primary"
               @click="togglePlayback"
             >
@@ -313,7 +313,7 @@
               </div>
             </div>
 
-            <div v-if="currentSource && !isGenerating" class="button-group">
+            <div v-if="currentSource" class="button-group">
               <button 
                 class="macos-button primary split-left"
                 :class="{ disabled: !isDownloadComplete }"
@@ -404,7 +404,8 @@ const {
   seekToPosition,
   downloadAudio,
   audioDuration,
-  currentTime
+  currentTime,
+  stopGeneration
 } = useTTS()
 
 const {
@@ -501,7 +502,15 @@ function togglePlayback() {
   toggleTTS()
 }
 
-function resetAll() {
+async function resetAll() {
+  // Always attempt to stop generation unconditionally
+  await stopGeneration()
+  
+  if (currentSource.value) {
+    currentSource.value.onended = null  // Remove event listener
+    currentSource.value.stop()
+    currentSource.value.disconnect()
+  }
   text.value = ''
   resetTTS()
   if (fileInput.value) {
