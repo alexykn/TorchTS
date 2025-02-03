@@ -140,7 +140,8 @@ export function useFileUpload() {
     event.preventDefault()
     dragCounter.value = 0
     isDragging.value = false
-    return event.dataTransfer.files[0]
+    // Return all dropped files as an Array
+    return Array.from(event.dataTransfer.files)
   }
 
   function clearFiles() {

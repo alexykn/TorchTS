@@ -20,9 +20,10 @@
               type="file"
               ref="fileInput"
               :accept="ACCEPTED_FILE_TYPES"
+              multiple
               style="display: none"
               @change="handleFileSelect"
-              aria-label="Choose a file to upload"
+              aria-label="Choose files to upload"
             >
             <div 
               class="upload-zone"
@@ -417,7 +418,8 @@ const {
   deleteFile,
   deleteAllFiles,
   clearFiles,
-  setFiles
+  setFiles,
+  handleDrop
 } = useFileUpload()
 
 const {
@@ -466,13 +468,17 @@ async function processFile(file) {
 }
 
 async function handleFileSelect(event) {
-  const file = event.target.files[0]
-  await processFile(file)
+  const files = event.target.files
+  for (const file of files) {
+    await processFile(file)
+  }
 }
 
 async function handleFileDrop(event) {
-  const file = handleDrop(event)
-  await processFile(file)
+  const files = handleDrop(event)
+  for (const file of files) {
+    await processFile(file)
+  }
 }
 
 function handleDragEnter(event) {
