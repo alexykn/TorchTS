@@ -12,6 +12,8 @@ services:
       - ./src/backend:/app/src/backend
     environment:
       - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     restart: unless-stopped
     deploy:
       resources:
