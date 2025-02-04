@@ -1,0 +1,65 @@
+# Use an NVIDIA CUDA runtime with cuDNN support on Ubuntu 22.04
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# Set noninteractive mode to avoid installation prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required tools to add the deadsnakes PPA and update apt sources
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update
+
+# Install Python 3.11 and other system dependencies
+RUN apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-dev \
+    python3.11-venv \
+    python3-pip \
+    espeak \
+    build-essential \
+    pkg-config \
+    git \
+    gcc \
+    zlib1g-dev \
+    libpng-dev \
+    gfortran \
+    libopenblas-dev \
+    liblapack-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ensure that the "python" command invokes Python 3.11
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+
+WORKDIR /app
+
+# Install uv (a tool to create and manage virtual environments)
+RUN python -m pip install --no-cache-dir uv
+
+# Create a virtual environment using uv
+RUN uv venv -p python
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Pre-install numpy (a common build dependency for scientific packages)
+RUN . .venv/bin/activate && uv pip install numpy pip
+
+# Install spaCy using its pre-built wheel to avoid building from source
+RUN . .venv/bin/activate && uv pip install --no-deps spacy==3.7.2
+
+# Install the rest of the requirements (allowing prerelease versions if needed)
+RUN . .venv/bin/activate && uv pip install --prerelease=allow -r requirements.txt
+
+# Copy the backend source code
+COPY src/backend ./src/backend
+
+# Create necessary directories for app data
+RUN mkdir -p data/audio data/files
+
+# Set the working directory to where main.py is located
+WORKDIR /app/src/backend
+
+# Command to run the application using the virtual environment's Python interpreter
+CMD ["/app/.venv/bin/python", "main.py"]
