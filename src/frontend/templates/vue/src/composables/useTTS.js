@@ -273,67 +273,65 @@ export function useTTS() {
     // If we have a unified buffer, use that instead of chunks
     if (unifiedBuffer) {
       if (!currentSource.value || !isPlaying.value) {
-        currentSource.value = audioContext.value.createBufferSource()
-        currentSource.value.buffer = unifiedBuffer
-        currentSource.value.connect(gainNode.value)
-        
+        currentSource.value = audioContext.value.createBufferSource();
+        currentSource.value.buffer = unifiedBuffer;
+        currentSource.value.connect(gainNode.value);
+
         if (!isPlaying.value) {
-          isPlaying.value = true
-          startTime = audioContext.value.currentTime
+          isPlaying.value = true;
+          startTime = audioContext.value.currentTime;
         }
-        
-        currentSource.value.start(0)
-        startProgressUpdates()
-        
+
+        currentSource.value.start(0);
+        startProgressUpdates();
+
         currentSource.value.onended = () => {
           if (isPlaying.value) {
-            isPlaying.value = false
-            progressMessage.value = 'Playback complete!'
-            stopProgressUpdates()
+            isPlaying.value = false;
+            progressMessage.value = 'Playback complete!';
+            stopProgressUpdates();
           }
-        }
+        };
       }
-      return
+      return;
     }
 
-    // Original chunk-based playback logic for initial playback
+    // If there are no chunks available yet, wait a bit (poll) if generation is still in progress
     if (audioQueue.length === 0) {
-      const nextChunkBuffer = chunkCache.get(currentChunkIndex.value)
-      if (nextChunkBuffer) {
-        audioQueue.push(nextChunkBuffer)
-        currentChunkIndex.value++
+      if (isGenerating.value) {
+        setTimeout(() => playNextChunk(text, voice), 200);
       }
+      return;
     }
 
-    if (audioQueue.length > 0) {
-      const buffer = audioQueue.shift()
-      if (currentSource.value) {
-        currentSource.value.onended = null
-        currentSource.value.stop()
-        currentSource.value.disconnect()
-      }
+    // There is at least one chunk in the audioQueue: play it.
+    const buffer = audioQueue.shift();
+    if (currentSource.value) {
+      currentSource.value.onended = null;
+      currentSource.value.stop();
+      currentSource.value.disconnect();
+    }
 
-      currentSource.value = audioContext.value.createBufferSource()
-      currentSource.value.buffer = buffer
-      currentSource.value.connect(gainNode.value)
+    currentSource.value = audioContext.value.createBufferSource();
+    currentSource.value.buffer = buffer;
+    currentSource.value.connect(gainNode.value);
 
-      if (!isPlaying.value) {
-        isPlaying.value = true
-        startTime = audioContext.value.currentTime - pausedTime
-        startProgressUpdates()
-      }
+    if (!isPlaying.value) {
+      isPlaying.value = true;
+      startTime = audioContext.value.currentTime - pausedTime;
+      startProgressUpdates();
+    }
 
-      currentSource.value.start(0)
-      currentSource.value.onended = () => {
-        if (isPlaying.value) {
-          playNextChunk(text, voice)
-        }
+    currentSource.value.start(0);
+    currentSource.value.onended = () => {
+      if (isPlaying.value) {
+        playNextChunk(text, voice);
       }
-      
-      // Always try to fetch more chunks if we haven't completed downloading
-      if (!isDownloadComplete.value) {
-        fetchNextChunks(text, voice)
-      }
+    };
+
+    // Always try to fetch more chunks if the download is not complete
+    if (!isDownloadComplete.value) {
+      fetchNextChunks(text, voice);
     }
   }
 
