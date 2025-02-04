@@ -13,6 +13,7 @@ TorchTS is a text-to-speech application built with Python and Vue.js. It provide
 - **Text Processing:** Text handling and chunking utilities
 - **Document Support:** Parse and extract text from PDF, DOCX, ODT, and markdown files
 - **Audio Generation:** Text-to-speech conversion using Kokoro TTS
+- **Multi-Speaker Support:** Generate audio with different voices for different speakers in dialogues
 - **Profile Management:** Create and manage profiles with customizable voice and volume settings
 - **File Management:** Upload, store, and organize files within profiles
 - **RESTful API:** FastAPI backend endpoints for file processing and audio generation
@@ -100,8 +101,23 @@ brew install espeak-ng
 2. Create a profile by clicking "Create New Profile" and setting your preferred voice and volume settings.
 3. Upload text or documents to your profile using the file upload area.
 4. Click on any uploaded file to load its content into the text editor.
-5. Adjust voice settings if needed and click "Convert to Speech" to generate audio.
-6. Use the profile settings (cogwheel icon) to manage your files and profile.
+5. Choose between Single Speaker or Multi Speaker mode:
+   - **Single Speaker:** Select one voice for the entire text
+   - **Multi Speaker:** Use multiple voices for different speakers in dialogues
+6. Adjust voice settings if needed and click "Convert to Speech" to generate audio.
+7. Use the profile settings (cogwheel icon) to manage your files and profile.
+
+### Multi-Speaker Mode
+
+In Multi-Speaker mode, you can assign different voices to different speakers in your text. Use the following format:
+
+```
+>>> 1 Hello everyone! This is the first speaker.
+>>> 2 And I'm the second speaker!
+>>> 1 We can have a conversation like this.
+```
+
+Each speaker is identified by a number (>>> 1, >>> 2, etc.) and can be assigned a different voice using the voice selection dropdown menus.
 
 ### Keyboard Controls
 
