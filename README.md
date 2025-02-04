@@ -45,6 +45,12 @@ torchts/
    ```bash
    docker compose up -d
    ```
+
+   To run with CUDA use:
+   ```bash
+   docker compose -f docker-compose.cuda.yml up -d
+   ```
+
 3. Access the web interface at `http://localhost:5173`
 
 That's it! Docker will automatically set up everything needed.
