@@ -210,13 +210,16 @@ export function useTTS() {
     }
   }
 
-  // Update seekRelative to handle paused state with proper 5-second steps
+  // Update seekRelative to correctly base its calculations on the current playback time.
   function seekRelative(offsetSeconds) {
     if (unifiedBuffer && isDownloadComplete.value) {
-      // Now use currentSeek instead of currentTime.value so that we accumulate 5-second steps correctly
-      const newTime = Math.max(0, Math.min(totalDuration, currentSeek + offsetSeconds))
-      const newPosition = (newTime / totalDuration) * 100
-      seekToPosition(newPosition)
+      // Determine the current playback time dynamically.
+      const currentPlaybackTime = isPlaying.value 
+          ? audioContext.value.currentTime - startTime 
+          : currentTime.value;
+      const newTime = Math.max(0, Math.min(totalDuration, currentPlaybackTime + offsetSeconds));
+      const newPosition = (newTime / totalDuration) * 100;
+      seekToPosition(newPosition);
     }
   }
 
