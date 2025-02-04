@@ -56,6 +56,12 @@ class ProfileCreate(BaseModel):
 class StopGenerationRequest(BaseModel):
     session_id: str
 
+# Add a new Pydantic model for multi speaker requests
+class MultiTTSRequest(BaseModel):
+    text: str
+    speed: Optional[float] = 1.0
+    speakers: dict[str, str]  # Mapping of speaker id ("1", "2", etc.) to a voice preset
+
 @app.post("/profiles")
 async def create_profile(profile: ProfileCreate):
     with Session(engine) as session:
@@ -392,3 +398,104 @@ async def delete_all_profile_files(profile_id: int):
         session.commit()
         
         return {"message": "All files deleted successfully"}
+
+@app.post("/generate_multi")
+async def generate_audio_multi(request: MultiTTSRequest):
+    # Compute a unique session ID based on a "multi_" prefix and the beginning of the text
+    session_data = ("multi_" + request.text[:32]).encode('utf-8')
+    session_id = hashlib.md5(session_data).hexdigest()
+
+    # Manage active session tracking (similar to single speaker)
+    if session_id in active_generations:
+        active_generations.remove(session_id)
+    active_generations.add(session_id)
+    
+    print(f"Starting multi-speaker generation, session ID: {session_id}")
+
+    # New, simplified parsing function that supports inline segments.
+    # It removes any explicit closing marker ("<<<") and then splits on ">>>"
+    def parse_segments(text: str):
+        segments = []
+        # Remove any explicit closing markers
+        cleaned_text = text.replace("<<<", "")
+        # Split on the ">>>" marker – each segment should start with a speaker id
+        parts = cleaned_text.split(">>>")
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            tokens = part.split(maxsplit=1)
+            speaker = tokens[0]
+            segment_text = tokens[1] if len(tokens) > 1 else ""
+            segments.append((speaker, segment_text.strip()))
+        return segments
+
+    try:
+        segments = parse_segments(request.text)
+        if not segments:
+            raise HTTPException(status_code=400, detail="No valid segments found in text")
+            
+        all_audio_segments = []
+        for idx, (speaker_id, segment_text) in enumerate(segments):
+            if not segment_text:
+                continue
+            # Lookup the voice preset for the given speaker id
+            voice = request.speakers.get(speaker_id, None)
+            if not voice or len(voice) < 2:
+                raise HTTPException(status_code=400, detail=f"Voice for speaker {speaker_id} is invalid or not provided")
+            voice_type = voice[0].lower()
+            if voice_type not in pipelines:
+                raise HTTPException(status_code=400, detail=f"Invalid voice type for speaker {speaker_id}: {voice}. Must be 'a' or 'b'")
+            pipeline = pipelines[voice_type]
+            # Chunk the segment text to keep individual requests manageable.
+            chunks = chunk_text(segment_text)
+            if not chunks:
+                continue
+            segment_audio_chunks = []
+            print(f"Generating audio for segment {idx+1} by speaker {speaker_id} using {len(chunks)} chunk(s)")
+            for chunk_idx, chunk in enumerate(chunks):
+                if session_id not in active_generations:
+                    raise HTTPException(status_code=499, detail="Client cancelled request")
+                audio_gen = pipeline(chunk, voice=voice, speed=request.speed)
+                for _, _, audio in audio_gen:
+                    if session_id not in active_generations:
+                        if hasattr(audio_gen, 'close'):
+                            audio_gen.close()
+                        raise HTTPException(status_code=499, detail="Client cancelled request")
+                    segment_audio_chunks.append(audio)
+                    print(f"Segment {idx+1}, generated chunk {chunk_idx} audio shape: {audio.shape}")
+            if segment_audio_chunks:
+                final_segment_audio = numpy.concatenate(segment_audio_chunks)
+                all_audio_segments.append(final_segment_audio)
+                
+        if not all_audio_segments:
+            raise HTTPException(status_code=400, detail="No audio generated for any segment")
+        
+        # Concatenate all segments into one final audio stream.
+        final_audio = numpy.concatenate(all_audio_segments)
+        audio_normalized = normalize_audio(final_audio)
+        audio_int16 = (audio_normalized * 32767).astype(numpy.int16)
+        
+        # Write the final audio to a buffer as a WAV file.
+        buffer = io.BytesIO()
+        sf.write(buffer, audio_int16, 24000, format='WAV', subtype='PCM_16')
+        buffer.seek(0)
+        
+        active_generations.discard(session_id)
+        
+        headers = {
+            "Content-Type": "audio/wav",
+            "Cache-Control": "public, max-age=31536000",
+            "Accept-Ranges": "bytes",
+            "X-Session-ID": session_id,
+            "X-Mode": "multi",
+            "X-Segment-Count": str(len(segments))
+        }
+        return StreamingResponse(buffer, media_type="audio/wav", headers=headers)
+    except HTTPException as he:
+        active_generations.discard(session_id)
+        raise he
+    except Exception as e:
+        active_generations.discard(session_id)
+        print(f"Error in multi-speaker generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Multi-speaker audio generation failed: {str(e)}")

@@ -589,6 +589,103 @@ export function useTTS() {
     }
   }
 
+  // New function to generate multi-speaker speech
+  async function generateMultiSpeech(text, speakers) {
+    if (!text.trim()) {
+      progressMessage.value = 'Please enter some text'
+      return
+    }
+
+    try {
+      initAudio()
+      if (audioContext.value.state === 'suspended') {
+        await audioContext.value.resume()
+      }
+
+      isGenerating.value = true
+      progressMessage.value = 'Initializing multi-speaker generation...'
+      
+      // Reset state variables similar to generateSpeech
+      currentChunkIndex.value = 0
+      totalChunks = 0
+      downloadProgress.value = 0
+      audioQueue.length = 0
+      chunkCache.clear()
+      
+      if (currentSource.value) {
+        currentSource.value.onended = null
+        currentSource.value.stop()
+        currentSource.value.disconnect()
+        currentSource.value = null
+      }
+      currentSessionId = null
+
+      // Send the multi-speaker POST request
+      currentAbortController = new AbortController()
+      const timeoutId = setTimeout(() => currentAbortController.abort(), 30000) // 30s timeout
+
+      const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH_MULTI, {
+        method: 'POST',
+        signal: currentAbortController.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text, 
+          speed: 1.0,
+          speakers  // e.g. { "1": "am_michael", "2": "bf_emma", "3": "bm_george", "4": "af_nicole" }
+        })
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Server error: ${response.status}`)
+      }
+      
+      const sessionId = response.headers.get('X-Session-ID')
+      if (sessionId) {
+        currentSessionId = sessionId
+      }
+      
+      // In multi mode we assume the endpoint streams the complete WAV audio
+      const arrayBuffer = await response.arrayBuffer()
+      unifiedBuffer = await audioContext.value.decodeAudioData(arrayBuffer)
+      
+      totalDuration = unifiedBuffer.duration
+      audioDuration.value = totalDuration
+      isDownloadComplete.value = true
+      
+      // Create an AudioBufferSourceNode for playback
+      currentSource.value = audioContext.value.createBufferSource()
+      currentSource.value.buffer = unifiedBuffer
+      currentSource.value.connect(gainNode.value)
+      isPlaying.value = true
+      startTime = audioContext.value.currentTime
+      currentSource.value.start(0)
+      startProgressUpdates()
+      
+      currentSource.value.onended = () => {
+        isPlaying.value = false
+        progressMessage.value = 'Playback complete!'
+        stopProgressUpdates()
+      }
+      
+      isGenerating.value = false
+    } catch (error) {
+      console.error('Error during multi-speaker speech generation:', error)
+      progressMessage.value = `Error: ${error.message}`
+      isGenerating.value = false
+      isPlaying.value = false
+      
+      if (currentSource.value) {
+        currentSource.value.onended = null
+        currentSource.value.stop()
+        currentSource.value.disconnect()
+        currentSource.value = null
+      }
+    }
+  }
+
   onUnmounted(() => {
     stopProgressUpdates()  // Clean up interval on unmount
     reset()
@@ -604,6 +701,7 @@ export function useTTS() {
     playbackProgress,
     isDownloadComplete,
     generateSpeech,
+    generateMultiSpeech,  // New export for multi mode
     togglePlayback,
     reset,
     setVolume,

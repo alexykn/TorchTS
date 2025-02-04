@@ -232,7 +232,25 @@
       <v-container>
         <v-card class="mx-auto" max-width="680" elevation="2">
           <v-card-title class="text-h5 font-weight-bold d-flex align-center justify-space-between">
-            TorchTS
+            <div class="title-section">
+              TorchTS
+              <div class="mode-tabs">
+                <button 
+                  class="tab-button"
+                  :class="{ active: currentMode === 'single' }"
+                  @click="handleTabSwitch('single')"
+                >
+                  Single Speaker
+                </button>
+                <button 
+                  class="tab-button"
+                  :class="{ active: currentMode === 'multi' }"
+                  @click="handleTabSwitch('multi')"
+                >
+                  Multi Speaker
+                </button>
+              </div>
+            </div>
             <v-btn
               icon
               variant="text"
@@ -247,14 +265,27 @@
               <textarea 
                 v-model="text" 
                 class="macos-textarea"
-                placeholder="Enter your text here..."
+                :placeholder="currentMode === 'single' 
+                  ? 'Enter your text here...' 
+                  : `Use speaker markers to assign text to different voices:
+
+>>> 1
+This text will be read by Speaker 1
+
+>>> 2
+This text will be read by Speaker 2
+
+Alternatively, you can use inline segments:
+
+>>> 1 Hello >>> 2 World >>> 3 ...and so on`"
                 @focus="focusedElement = 'textarea'"
                 @blur="focusedElement = null"
               ></textarea>
             </div>
 
-            <div class="grid-controls">
-              <div class="input-group">
+            <!-- Single Speaker Mode: Voice selection and Volume slider on the same line -->
+            <div v-if="currentMode === 'single'" class="single-controls">
+              <div class="input-group voice-group">
                 <label class="input-label">Voice Preset</label>
                 <select 
                   v-model="voice"
@@ -268,7 +299,7 @@
                 </select>
               </div>
 
-              <div class="input-group">
+              <div class="input-group volume-group">
                 <label class="input-label">Volume</label>
                 <div class="volume-slider">
                   <input 
@@ -284,37 +315,107 @@
               </div>
             </div>
 
-            <button 
-              v-if="isPlaying"
-              class="macos-button primary"
-              @click="togglePlayback"
-            >
-              <span>Pause</span>
-            </button>
-            <button 
-              v-else-if="currentSource"
-              class="macos-button primary"
-              @click="togglePlayback"
-            >
-              <span>Play</span>
-            </button>
-            <button 
-              v-else-if="!isGenerating"
-              class="macos-button primary"
-              @click="handleGenerateSpeech"
-            >
-              <span>Convert to Speech</span>
-            </button>
-            <div v-else class="loading-dots">
-              <span>Generating</span>
-              <div class="dots">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
+            <!-- Multi Speaker Mode -->
+            <div v-else class="grid-controls">
+              <div class="speaker-grid">
+                <div class="input-group" v-for="n in 4" :key="n">
+                  <label class="input-label">Speaker {{ n }}</label>
+                  <select 
+                    v-model="multiSpeakerVoices[n]"
+                    class="macos-select"
+                  >
+                    <option v-for="option in VOICE_OPTIONS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="multi-controls-row">
+                <div class="volume-control">
+                  <label class="input-label">Volume</label>
+                  <div class="volume-slider">
+                    <input 
+                      type="range" 
+                      v-model="volume"
+                      class="macos-slider"
+                      min="0"
+                      max="100"
+                      step="1"
+                      @input="handleVolumeChange"
+                    >
+                  </div>
+                </div>
+
+                <div class="convert-button-wrapper">
+                  <button 
+                    v-if="!isGenerating && !currentSource"
+                    class="macos-button primary"
+                    @click="handleGenerateMultiSpeech"
+                  >
+                    Convert to Speech
+                  </button>
+                  <button 
+                    v-else-if="isPlaying"
+                    class="macos-button primary"
+                    @click="togglePlayback"
+                  >
+                    Pause
+                  </button>
+                  <button 
+                    v-else-if="currentSource"
+                    class="macos-button primary"
+                    @click="togglePlayback"
+                  >
+                    Play
+                  </button>
+                  <div v-else class="loading-dots">
+                    <span>Generating</span>
+                    <div class="dots">
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div v-if="currentSource" class="button-group">
+            <!-- Common Controls for Single Speaker Mode -->
+            <div v-if="currentMode === 'single'">
+              <button 
+                v-if="isPlaying"
+                class="macos-button primary"
+                @click="togglePlayback"
+              >
+                <span>Pause</span>
+              </button>
+              <button 
+                v-else-if="currentSource"
+                class="macos-button primary"
+                @click="togglePlayback"
+              >
+                <span>Play</span>
+              </button>
+              <button 
+                v-else-if="!isGenerating"
+                class="macos-button primary"
+                @click="handleGenerateSpeech"
+              >
+                <span>Convert to Speech</span>
+              </button>
+              <div v-else-if="isGenerating" class="loading-dots">
+                <span>Generating</span>
+                <div class="dots">
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                  <div class="dot"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Button Group (Download/Reset) moved above the progress bar -->
+            <div class="button-group">
               <button 
                 class="macos-button primary split-left"
                 :class="{ disabled: !isDownloadComplete }"
@@ -334,6 +435,7 @@
               </button>
             </div>
 
+            <!-- Progress Message: now appears below the button group -->
             <transition name="fade">
               <div v-if="progressMessage" class="status-bar">
                 <div class="status-icon">
@@ -367,6 +469,22 @@
         </v-card>
       </v-container>
     </v-main>
+
+    <!-- Mode Switch Confirmation Dialog (using same style as deletion dialogs) -->
+    <v-dialog v-model="showTabSwitchDialog" max-width="400px">
+      <v-card>
+        <v-card-title>Switch Mode Confirmation</v-card-title>
+        <v-card-text>
+          Audio is currently playing or being generated. Switching modes will stop playback
+          and clear your session. Do you wish to proceed?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" text @click="confirmTabSwitch">OK</v-btn>
+          <v-btn text @click="cancelTabSwitch">Cancel</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
@@ -394,6 +512,7 @@ const {
   isGenerating, 
   progressMessage: ttsProgress,
   generateSpeech,
+  generateMultiSpeech,
   togglePlayback: toggleTTS,
   reset: resetTTS,
   setVolume,
@@ -450,6 +569,14 @@ const selectedProfile = ref(localStorage.getItem('selectedProfileId') ? parseInt
 const showDeleteFilesDialog = ref(false)
 const showDeleteProfileDialog = ref(false)
 
+// Add new state for mode selection
+const currentMode = ref('single')
+const multiSpeakerVoices = ref({ 1: DEFAULT_VOICE, 2: DEFAULT_VOICE, 3: DEFAULT_VOICE, 4: DEFAULT_VOICE })
+
+// New reactive state for tab switch confirmation
+const showTabSwitchDialog = ref(false)
+const pendingTabSwitch = ref(null)
+
 // Methods
 async function processFile(file) {
   if (file && selectedProfile.value) {
@@ -503,6 +630,11 @@ function handleVolumeChange(event) {
 
 async function handleGenerateSpeech() {
   await generateSpeech(text.value, voice.value)
+}
+
+async function handleGenerateMultiSpeech() {
+  // Pass the multi-speaker voices mapping from multiSpeakerVoices
+  await generateMultiSpeech(text.value, multiSpeakerVoices.value)
 }
 
 function togglePlayback() {
@@ -706,6 +838,34 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
 })
+
+// Called when a tab button is clicked.
+function handleTabSwitch(newMode) {
+  if (newMode === currentMode.value) return
+  if (isPlaying.value || isGenerating.value) {
+    pendingTabSwitch.value = newMode
+    showTabSwitchDialog.value = true
+  } else {
+    resetTTS()  // Use the imported resetTTS from useTTS
+    text.value = ''
+    currentMode.value = newMode
+  }
+}
+
+// Called when the user confirms the switch
+function confirmTabSwitch() {
+  resetTTS()  // Call the correct reset method
+  text.value = ''
+  currentMode.value = pendingTabSwitch.value
+  pendingTabSwitch.value = null
+  showTabSwitchDialog.value = false
+}
+
+// Called when the user cancels the switch.
+function cancelTabSwitch() {
+  pendingTabSwitch.value = null
+  showTabSwitchDialog.value = false
+}
 </script>
 
 <style>
@@ -786,11 +946,10 @@ onBeforeUnmount(() => {
 }
 
 .grid-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   margin: 20px 0;
-  align-items: end;
 }
 
 .volume-slider {
@@ -1157,5 +1316,118 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   pointer-events: none;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 4px;
+  height: 32px;
+}
+
+.tab-button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  background: rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface-variant));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: rgba(var(--v-theme-primary), 0.1);
+}
+
+.tab-button.active {
+  background: rgb(var(--v-theme-primary));
+  color: #ffffff;
+}
+
+.speaker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Update grid-controls for multi-speaker mode */
+.grid-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+/* Ensure consistent height for select dropdowns */
+.macos-select {
+  height: 36px;
+}
+
+/* Adjust input groups in speaker grid to remove bottom margin */
+.speaker-grid .input-group {
+  margin-bottom: 0;
+}
+
+.multi-controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.volume-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.convert-button-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Adjust button height in multi mode */
+.multi-controls-row .macos-button {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+/* Adjust volume slider in multi mode */
+.multi-controls-row .volume-slider {
+  height: 36px;
+}
+
+.multi-controls-row .macos-slider {
+  height: 36px;
+}
+
+/* Adjust loading dots in multi mode */
+.multi-controls-row .loading-dots {
+  height: 36px;
+  font-size: 13px;
+}
+
+/* Single Speaker Mode: Voice selection and Volume slider on the same line */
+.single-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.single-controls .input-group {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.voice-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.volume-group {
+  flex: 1;
+  min-width: 0;
 }
 </style>
