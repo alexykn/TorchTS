@@ -73,7 +73,7 @@ export function useTTS() {
     try {
       progressMessage.value = `Fetching chunk ${chunkId + 1}/${totalChunks}...`
       currentAbortController = new AbortController()
-      const timeoutId = setTimeout(() => currentAbortController.abort(), 10000) // 10s timeout
+      const timeoutId = setTimeout(() => currentAbortController.abort(), 50000) // 50s timeout
 
       const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH, {
         method: 'POST',
@@ -622,7 +622,7 @@ export function useTTS() {
 
       // Send the multi-speaker POST request
       currentAbortController = new AbortController()
-      const timeoutId = setTimeout(() => currentAbortController.abort(), 30000) // 30s timeout
+      const timeoutId = setTimeout(() => currentAbortController.abort(), 50000) // 50s timeout
 
       const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH_MULTI, {
         method: 'POST',
