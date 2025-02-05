@@ -1,0 +1,99 @@
+/* Sidebar Layout */
+.file-sidebar {
+  border-right: 1px solid rgb(var(--v-theme-surface-variant-rgb));
+  background: rgb(var(--v-theme-surface-rgb));
+  position: relative;
+}
+
+.profile-section {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgb(var(--v-theme-surface-rgb));
+}
+
+/* Grid Layout */
+.grid-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+.speaker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+/* Flex Layouts */
+.single-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+.multi-controls-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
+
+.button-group {
+  display: flex;
+  gap: 1px;
+  margin-top: var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+/* Input Groups */
+.input-group {
+  margin-bottom: var(--spacing-lg);
+  width: 100%;
+}
+
+.voice-group,
+.volume-group {
+  flex: 1;
+  width: 50%;
+  min-width: 0;
+}
+
+.volume-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.convert-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Labels */
+.input-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: rgb(var(--v-theme-on-surface-variant-rgb));
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  transition: transform var(--transition-normal);
+}
+
+.theme-toggle:hover {
+  transform: rotate(15deg);
+}
+
+/* Button Divider */
+.button-divider {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+} 

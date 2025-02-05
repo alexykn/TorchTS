@@ -1,5 +1,5 @@
-import { ref, computed } from 'vue'
-import { API_ENDPOINTS } from '../constants/api'
+import { ref } from 'vue'
+import { useAPI } from './useAPI'
 
 export function useProfiles() {
   const profiles = ref([])
@@ -9,11 +9,9 @@ export function useProfiles() {
   async function loadProfiles() {
     isLoading.value = true
     try {
-      const response = await fetch(API_ENDPOINTS.PROFILES)
-      profiles.value = await response.json()
+      const api = useAPI()
+      profiles.value = await api.getProfiles()
       
-      // If there's no selected profile in localStorage but profiles exist,
-      // select the first profile (which should be the default one)
       const savedProfileId = localStorage.getItem('selectedProfileId')
       if (!savedProfileId && profiles.value.length > 0) {
         const defaultProfile = profiles.value[0]
@@ -29,25 +27,14 @@ export function useProfiles() {
 
   async function createProfile(name, voicePreset = null, volume = 0.7) {
     try {
-      const response = await fetch(API_ENDPOINTS.PROFILES, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name,
-          voice_preset: voicePreset,
-          volume: volume
-        })
+      const api = useAPI()
+      const profile = await api.createProfile({
+        name,
+        voice_preset: voicePreset,
+        volume
       })
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to create profile')
-      }
-      
-      const profile = await response.json()
       profiles.value.push(profile)
       return profile
-      
     } catch (error) {
       console.error('Error creating profile:', error)
       throw error
@@ -59,34 +46,19 @@ export function useProfiles() {
     
     isLoading.value = true
     try {
-      // Find and set current profile
       currentProfile.value = profiles.value.find(p => p.id === profileId)
       
-      // Load profile's files
-      const response = await fetch(`${API_ENDPOINTS.PROFILES}/${profileId}/files`)
-      if (!response.ok) {
-        throw new Error('Failed to load profile files')
-      }
+      const api = useAPI()
+      const files = await api.getProfileFiles(profileId)
+      const audioResponse = await api.getProfileAudio(profileId)
       
-      const files = await response.json()
-      
-      // Load profile's audio outputs
-      const audioResponse = await fetch(`${API_ENDPOINTS.PROFILES}/${profileId}/audio`)
-      if (!audioResponse.ok) {
-        throw new Error('Failed to load profile audio')
-      }
-      
-      const audioFiles = await audioResponse.json()
-      
-      // Return combined profile data
       return {
         profile: currentProfile.value,
-        files: files,
-        audioFiles: audioFiles
+        files,
+        audioFiles: audioResponse
       }
-      
     } catch (error) {
-      console.error('Error loading profile:', error)
+      console.error('Error selecting profile:', error)
       throw error
     } finally {
       isLoading.value = false
@@ -95,24 +67,63 @@ export function useProfiles() {
 
   async function deleteProfile(profileId) {
     try {
-      const response = await fetch(`${API_ENDPOINTS.PROFILES}/${profileId}`, {
-        method: 'DELETE'
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete profile')
-      }
-      
-      // Remove profile from list
+      const api = useAPI()
+      await api.deleteProfile(profileId)
       profiles.value = profiles.value.filter(p => p.id !== profileId)
       if (currentProfile.value?.id === profileId) {
         currentProfile.value = null
       }
-      
       return true
     } catch (error) {
       console.error('Error deleting profile:', error)
       throw error
+    }
+  }
+
+  // --- NEW WRAPPER FUNCTIONS FOR PROFILE MANAGEMENT ---
+
+  /**
+   * Applies (selects) a profile by ID:
+   * - Saves the selected ID in localStorage
+   * - Calls the standard selectProfile API
+   * - Uses optional callbacks to update UI-controlled state (e.g., voice, volume, files)
+   */
+  async function applyProfile(profileId, { setVoice, setVolume, setFiles } = {}) {
+    if (!profileId) return null
+    localStorage.setItem('selectedProfileId', profileId)
+    const profileData = await selectProfile(profileId)
+    if (setVoice) {
+      setVoice(profileData.profile.voice_preset || null)
+    }
+    if (setVolume) {
+      setVolume(profileData.profile.volume ? (profileData.profile.volume * 100) : 70)
+    }
+    if (setFiles) {
+      setFiles(profileData.files.map(f => ({
+        ...f,
+        name: f.filename,
+        type: f.file_type
+      })))
+    }
+    return profileData
+  }
+
+  /**
+   * Creates a profile via API and then applies it.
+   */
+  async function createAndApplyProfile(name, voicePreset = null, volume = 0.7, { setVoice, setVolume, setFiles } = {}) {
+    const newProfile = await createProfile(name, voicePreset, volume)
+    await applyProfile(newProfile.id, { setVoice, setVolume, setFiles })
+    return newProfile
+  }
+
+  /**
+   * Deletes the profile and – if it was the selected one – clears the selection.
+   */
+  async function removeProfile(profileId) {
+    await deleteProfile(profileId)
+    if (localStorage.getItem('selectedProfileId') == profileId) {
+      localStorage.removeItem('selectedProfileId')
     }
   }
 
@@ -123,6 +134,10 @@ export function useProfiles() {
     loadProfiles,
     createProfile,
     selectProfile,
-    deleteProfile
+    deleteProfile,
+    // Expose the new wrapper functions so they can be used in the UI
+    applyProfile,
+    createAndApplyProfile,
+    removeProfile
   }
 }

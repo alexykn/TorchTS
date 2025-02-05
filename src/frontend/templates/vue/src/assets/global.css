@@ -1,27 +1,101 @@
 :root {
-  --bg-primary: #403b3b;
-  --bg-secondary: #717171;
-  --text-primary: #1a1a1a;
-  --text-secondary: #666;
-  --border-color: #838383;
-  --input-bg: #fafafa;
-  --button-bg: #007aff;
-  --button-text: #ffffff;
-  --shadow-color: rgba(0, 0, 0, 0.12);
-  --status-success: #28c940;
-  --status-processing: #007aff;
+  /* Theme Colors */
+  --v-theme-primary-rgb: 0, 122, 255;
+  --v-theme-secondary-rgb: 113, 113, 113;
+  --v-theme-surface-rgb: 255, 255, 255;
+  --v-theme-surface-variant-rgb: 242, 242, 242;
+  --v-theme-on-surface-rgb: 26, 26, 26;
+  --v-theme-on-surface-variant-rgb: 102, 102, 102;
+  --v-theme-success-rgb: 40, 201, 64;
+  --v-theme-background-rgb: 250, 250, 250;
+  --v-theme-card-rgb: 255, 255, 255;
+  --v-theme-sidebar-rgb: 247, 247, 247;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Typography */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  /* Border Radius */
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
 }
 
+/* Dark Theme Variables */
 [data-theme="dark"] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2a2a2a;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --border-color: #404040;
-  --input-bg: #2a2a2a;
-  --button-bg: #0a84ff;
-  --button-text: #ffffff;
-  --shadow-color: rgba(0, 0, 0, 0.3);
-  --status-success: #32d74b;
-  --status-processing: #0a84ff;
+  --v-theme-surface-rgb: 18, 18, 18;
+  --v-theme-surface-variant-rgb: 30, 30, 30;
+  --v-theme-on-surface-rgb: 255, 255, 255;
+  --v-theme-on-surface-variant-rgb: 158, 158, 158;
+  --v-theme-background-rgb: 13, 13, 13;
+  --v-theme-card-rgb: 28, 28, 28;
+  --v-theme-primary-rgb: 0, 122, 255;
+  --v-theme-sidebar-rgb: 24, 24, 24;
+}
+
+/* Base Styles */
+:root {
+  color-scheme: light dark;
+}
+
+.v-application {
+  background: rgb(var(--v-theme-background)) !important;
+}
+
+/* Typography */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Utility Classes */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-pointer:hover {
+  background: rgba(var(--v-theme-primary-rgb), 0.05) !important;
+}
+
+/* Card Styles */
+.v-card {
+  background: rgb(var(--v-theme-card-rgb)) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .v-card {
+  background: rgb(var(--v-theme-card-rgb)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Dialog Styles */
+.v-dialog .v-card {
+  background: rgb(var(--v-theme-surface-rgb)) !important;
+}
+
+/* Sidebar Styles */
+.file-sidebar {
+  background: rgb(var(--v-theme-sidebar-rgb)) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="dark"] .file-sidebar {
+  background: rgb(var(--v-theme-sidebar-rgb)) !important;
+  border-right-color: rgba(255, 255, 255, 0.05) !important;
 }
