@@ -19,10 +19,12 @@
     />
     <MainContent
       v-model:text="text"
+      v-model:voice="voice"
+      v-model:volume="volume"
+      v-model:multiSpeakerVoices="multiSpeakerVoices"
       :currentMode="currentMode"
       :voice="voice"
       :volume="volume"
-      :multiSpeakerVoices="multiSpeakerVoices"
       :isPlaying="isPlaying"
       :isGenerating="isGenerating"
       :currentSource="currentSource"
