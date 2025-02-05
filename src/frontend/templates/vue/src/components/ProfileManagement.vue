@@ -23,7 +23,9 @@
                   size="small"
                   class="ml-2"
                   v-bind="props"
-                ></v-btn>
+                >
+                  <v-icon>mdi-cog</v-icon>
+                </v-btn>
               </template>
   
               <v-list>
