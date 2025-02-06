@@ -1,52 +1,74 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, Session
-from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float, MetaData
+from sqlalchemy.orm import declarative_base, relationship, Session
+from datetime import datetime, timezone
 import os
 
 # Create the database directory if it doesn't exist
 os.makedirs('data', exist_ok=True)
 
-# Create engine
-engine = create_engine('sqlite:///data/torchts.db')
-Base = declarative_base()
+# Define a naming convention for indexes and constraints
+metadata = MetaData(naming_convention={
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+})
+
+Base = declarative_base(metadata=metadata)
+
+# Helper function for timezone-aware UTC timestamp
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class Profile(Base):
     __tablename__ = 'profiles'
     
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    voice_preset = Column(String)
-    volume = Column(Float, default=0.8)
+    id: int = Column(Integer, primary_key=True)
+    name: str = Column(String, unique=True, nullable=False)
+    created_at: datetime = Column(DateTime(timezone=True), default=utc_now)
+    voice_preset: str = Column(String)
+    volume: float = Column(Float, default=0.8)
     
     files = relationship("File", back_populates="profile", cascade="all, delete-orphan")
     audio_outputs = relationship("AudioOutput", back_populates="profile", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<Profile(id={self.id}, name={self.name})>"
 
 class File(Base):
     __tablename__ = 'files'
     
-    id = Column(Integer, primary_key=True)
-    profile_id = Column(Integer, ForeignKey('profiles.id'))
-    filename = Column(String, nullable=False)
-    file_type = Column(String, nullable=False)
-    content = Column(String, nullable=False)  # Stored text content
-    pages = Column(Integer)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: int = Column(Integer, primary_key=True)
+    profile_id: int = Column(Integer, ForeignKey('profiles.id'), index=True)
+    filename: str = Column(String, nullable=False)
+    file_type: str = Column(String, nullable=False)
+    content: str = Column(String, nullable=False)  # Stored text content
+    pages: int = Column(Integer)
+    created_at: datetime = Column(DateTime(timezone=True), default=utc_now)
     
     profile = relationship("Profile", back_populates="files")
+    
+    def __repr__(self):
+        return f"<File(id={self.id}, filename={self.filename})>"
 
 class AudioOutput(Base):
     __tablename__ = 'audio_outputs'
     
-    id = Column(Integer, primary_key=True)
-    profile_id = Column(Integer, ForeignKey('profiles.id'))
-    file_path = Column(String, nullable=False)  # Path to stored audio file
-    voice = Column(String, nullable=False)
-    text_content = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: int = Column(Integer, primary_key=True)
+    profile_id: int = Column(Integer, ForeignKey('profiles.id'), index=True)
+    file_path: str = Column(String, nullable=False)  # Path to stored audio file
+    voice: str = Column(String, nullable=False)
+    text_content: str = Column(String, nullable=False)
+    created_at: datetime = Column(DateTime(timezone=True), default=utc_now)
     
     profile = relationship("Profile", back_populates="audio_outputs")
+    
+    def __repr__(self):
+        return f"<AudioOutput(id={self.id}, file_path={self.file_path})>"
+
+# Create engine
+engine = create_engine('sqlite:///data/torchts.db')
 
 # Create all tables
 Base.metadata.create_all(engine)
@@ -58,7 +80,7 @@ def create_default_profile():
             default_profile = Profile(
                 name="Default Profile",
                 voice_preset="am_michael",  # Default voice
-                volume=0.8  # Changed from 0.7 to 0.8 to match frontend's 80
+                volume=0.8  # Match frontend volume setting
             )
             session.add(default_profile)
             session.commit()
