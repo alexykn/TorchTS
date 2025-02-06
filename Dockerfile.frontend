@@ -1,18 +1,15 @@
-FROM node:18-slim
+FROM oven/bun:latest
 
 WORKDIR /app
 
-# Copy package files
-COPY src/frontend/templates/vue/package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the frontend code
+# Copy the frontend code first
 COPY src/frontend/templates/vue .
+
+# Install dependencies after copying all files
+RUN bun install
 
 # Expose the development port
 EXPOSE 5173
 
 # Start the development server with host configuration
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 
+CMD ["bun", "run", "dev", "--host", "0.0.0.0"] 
