@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -110,8 +110,9 @@ async def generate_audio_multi(request: MultiTTSRequest):
     return generate_multi_tts(request)
 
 @app.post("/stop-generation")
-async def stop_generation(request: StopGenerationRequest):
-    return stop_generation_service(request.session_id)
+async def stop_generation(request: StopGenerationRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(stop_generation_service, request.session_id)
+    return {"message": "Generation cancellation initiated", "session_id": request.session_id}
 
 @app.get("/")
 async def read_root():
