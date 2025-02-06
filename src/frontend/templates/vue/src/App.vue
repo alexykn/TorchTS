@@ -159,7 +159,10 @@ async function onProfileSelect(profileId) {
   if (!profileId) return
   try {
     await applyProfile(profileId, {
-      setVoice: (val) => { voice.value = val },
+      setVoice: (val) => { 
+        voice.value = val
+        // Pipeline will be automatically updated via the watch in SpeakerSelection
+      },
       setVolume: (val) => { volume.value = val },
       setFiles: (files) => { setFiles(files) }
     })
@@ -215,8 +218,12 @@ async function handleFileDrop(event) {
 function handleVolumeChange(event) {
   handleVolumeChangeFromPlayback(event, setVolume)
 }
-async function handleGenerateSpeech() {
-  await generateSpeech(text.value, voice.value)
+async function handleGenerateSpeech({ text: textToGenerate, voice: selectedVoice }) {
+  if (!selectedVoice) {
+    console.error('No voice selected')
+    return
+  }
+  await generateSpeech(textToGenerate, selectedVoice)
 }
 async function handleGenerateMultiSpeech() {
   await generateMultiSpeech(text.value, multiSpeakerVoices.value)

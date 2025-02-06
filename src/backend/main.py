@@ -12,10 +12,17 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 model = KModel().to(device).eval()
 
-# Initialize pipelines for both languages
+# Initialize pipelines for all supported languages
 pipelines = {
     'a': KPipeline(lang_code='a', model=model),  # American English
-    'b': KPipeline(lang_code='b', model=model)   # British English
+    'b': KPipeline(lang_code='b', model=model),  # British English
+    'e': KPipeline(lang_code='e', model=model),  # Spanish
+    'f': KPipeline(lang_code='f', model=model),  # French
+    'h': KPipeline(lang_code='h', model=model),  # Hindi
+    'i': KPipeline(lang_code='i', model=model),  # Italian
+    'j': KPipeline(lang_code='j', model=model),  # Japanese
+    'p': KPipeline(lang_code='p', model=model),  # Brazilian Portuguese
+    'z': KPipeline(lang_code='z', model=model)   # Mandarin Chinese
 }
 
 if __name__ == "__main__":

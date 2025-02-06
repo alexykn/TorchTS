@@ -18,7 +18,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-md) 0;
 }
 
 .speaker-grid {
@@ -41,17 +41,19 @@
   gap: var(--spacing-md);
 }
 
+/* Button Group */
 .button-group {
   display: flex;
   gap: 1px;
-  margin-top: var(--spacing-lg);
+  margin: var(--spacing-md) 0;
   border-radius: var(--border-radius-md);
   overflow: hidden;
+  width: 100%;
 }
 
 /* Input Groups */
 .input-group {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   width: 100%;
 }
 
@@ -62,16 +64,25 @@
   min-width: 0;
 }
 
+/* Controls Row Layout */
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+/* Volume Control */
 .volume-control {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  width: 100%;
 }
 
-.convert-button-wrapper {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+/* Conversion Controls */
+.conversion-controls {
+  width: 100%;
 }
 
 /* Labels */
@@ -96,4 +107,14 @@
 .button-divider {
   width: 1px;
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* Add these new styles */
+.split-button {
+  flex: 1;
+}
+
+/* Status Bar */
+.status-bar {
+  margin-top: var(--spacing-md) !important;
 } 
