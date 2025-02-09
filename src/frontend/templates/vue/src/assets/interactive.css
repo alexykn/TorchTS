@@ -27,18 +27,6 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.macos-slider::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: var(--volume-percentage);
-  background: rgb(var(--v-theme-primary-rgb));
-  border-radius: var(--border-radius-sm);
-  pointer-events: none;
-}
-
 .macos-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
