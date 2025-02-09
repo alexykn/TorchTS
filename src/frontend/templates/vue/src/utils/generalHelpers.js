@@ -52,13 +52,15 @@ export function cancelTabSwitch({ pendingTabSwitch, showTabSwitchDialog }) {
 
 // --- New keydown handler helper function ---
 
-export function handleKeydown(event, { currentSource, togglePlayback, volume, setVolume, isDownloadComplete, seekRelative }) {
+export function handleKeydown(event, { currentSource, togglePlayback, volume, setVolume, seekRelative }) {
   if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
   switch (event.code) {
     case 'Space':
       event.preventDefault();
-      if (currentSource.value) { togglePlayback(); }
+      if (currentSource.value) { 
+        togglePlayback(); 
+      }
       break;
     case 'ArrowUp':
       event.preventDefault();
@@ -74,13 +76,13 @@ export function handleKeydown(event, { currentSource, togglePlayback, volume, se
       break;
     case 'ArrowLeft':
       event.preventDefault();
-      if (currentSource.value && isDownloadComplete.value) {
+      if (currentSource.value) {
         seekRelative(-5);
       }
       break;
     case 'ArrowRight':
       event.preventDefault();
-      if (currentSource.value && isDownloadComplete.value) {
+      if (currentSource.value) {
         seekRelative(5);
       }
       break;

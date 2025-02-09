@@ -96,17 +96,25 @@ export function useAudioChunks(audioContext) {
       }
 
       if (currentChunkIndex.value >= totalChunks && !unifiedBuffer.value) {
-        const concatenatedBuffer = concatenateAudioBuffers(audioContext.value, audioQueue)
-        unifiedBuffer.value = concatenatedBuffer
+        const buffers = [];
+        for (let i = 0; i < totalChunks; i++) {
+          if (chunkCache.has(i)) {
+            buffers.push(chunkCache.get(i));
+          } else {
+            console.warn(`Missing chunk ${i} in chunkCache.`);
+          }
+        }
+        const concatenatedBuffer = concatenateAudioBuffers(audioContext.value, buffers);
+        unifiedBuffer.value = concatenatedBuffer;
         if (concatenatedBuffer) {
           window.dispatchEvent(new CustomEvent('audio-duration-set', {
             detail: { duration: concatenatedBuffer.duration }
-          }))
+          }));
         }
-        isDownloadComplete.value = true
+        isDownloadComplete.value = true;
         window.dispatchEvent(new CustomEvent('chunk-progress', {
           detail: { message: 'Ready to play' }
-        }))
+        }));
       }
     } catch (error) {
       console.error('Error fetching next chunks:', error)
