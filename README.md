@@ -2,6 +2,8 @@
 
 ## Overview
 
+04-20-2025: This uses a pretty outdated version of Kokoro, still works. I'll update it once I have my Sapphire project in a stable state.
+
 TorchTS is a text-to-speech application built with Python and Vue.js. It provides an interface for converting text from various document formats into speech using the Kokoro TTS model. The project combines a FastAPI backend with a Vue.js frontend to create a practical tool for text-to-speech conversion.
 
 ![Dark Mode](img/dark_mode.png)
