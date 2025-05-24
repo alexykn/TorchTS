@@ -1,20 +1,33 @@
 from fastapi import HTTPException, UploadFile
 from processing.document_parser import parse_document
-try:  # pragma: no cover - optional SQLAlchemy import
+try:  # pragma: no cover - optional SQLAlchemy import for core functions
     from sqlalchemy import select, delete
-    from sqlalchemy.orm import Session
-except Exception:  # noqa: pragma: no cover - SQLAlchemy missing
+except Exception:  # pragma: no cover - SQLAlchemy missing or not fully available
     select = delete = None
+try:
+    from sqlalchemy.orm import Session
+except Exception:  # pragma: no cover - ORM components missing
     Session = None
 
-from storage.models import (
-    engine,
-    Profile,
-    File as DBFile,
-    ASYNC_DB,
-    AsyncSessionLocal,
-    SA_AVAILABLE,
-)
+# Import the storage models module in a way that works even when tests provide
+# a lightweight stub.  Attributes may be missing when SQLAlchemy is not
+# available or when the module is replaced with a simple object.  Using
+# ``getattr`` avoids ``ImportError`` during import time and allows the service
+# functions to fall back to sensible defaults.
+try:  # pragma: no cover - optional dependency
+    from importlib import import_module
+    _models = import_module("storage.models")
+except Exception:  # pragma: no cover - when storage module is missing
+    _models = None
+
+engine = getattr(_models, "engine", None)
+Profile = getattr(_models, "Profile", None)
+DBFile = getattr(_models, "File", None)
+ASYNC_DB = getattr(_models, "ASYNC_DB", False)
+AsyncSessionLocal = getattr(_models, "AsyncSessionLocal", None)
+# When ``SA_AVAILABLE`` is not provided (as in tests using a lightweight stub),
+# assume SQLAlchemy-like functionality is present if an engine object exists.
+SA_AVAILABLE = getattr(_models, "SA_AVAILABLE", engine is not None)
 import asyncio
 
 async def list_profile_files_service(profile_id: int):
