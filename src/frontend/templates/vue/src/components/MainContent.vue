@@ -28,7 +28,11 @@
           />
   
           <div class="controls-row">
-            <AudioControls :volume="localVolume" @update:volume="val => localVolume = val" />
+            <AudioControls
+              ref="audioControls"
+              :volume="localVolume"
+              @update:volume="val => localVolume = val"
+            />
   
             <PlaybackControls
               :currentMode="currentMode"
@@ -161,8 +165,9 @@ const localMultiSpeakerVoices = computed({
   get: () => props.multiSpeakerVoices,
   set: newValue => emits('update:multiSpeakerVoices', newValue)
 })
-  
+
 const focusedElement = ref(null)
+const audioControls = ref(null)
   
 function handleVolumeChange(event) {
   emits('handleVolumeChange', event)
@@ -188,5 +193,6 @@ function updateMultiSpeakerVoice({ speaker, value }) {
 function onHandleTabSwitch(newMode) {
   emits('tabSwitch', newMode)
 }
-  
+
+defineExpose({ audioControls })
 </script>

@@ -18,6 +18,7 @@
       @deleteAllFiles="handleDeleteAllFiles"
     />
     <MainContent
+      ref="mainContent"
       v-model:text="text"
       v-model:voice="voice"
       v-model:volume="volume"
@@ -88,6 +89,7 @@ const currentFileId = ref(null)
 const voice = ref(DEFAULT_VOICE)
 const focusedElement = ref(null)
 const fileInput = ref(null)
+const mainContent = ref(null)
 
 // Composables
 const { audioContext, gainNode } = useAudioContext()
@@ -256,9 +258,9 @@ watch(unifiedBuffer, (newBuffer) => {
 })
 
 onMounted(() => {
-  const volumeSlider = document.querySelector('.macos-slider')
-  if (volumeSlider) {
-    volumeSlider.style.setProperty('--volume-percentage', `${volume.value}%`)
+  const slider = mainContent.value?.audioControls?.volumeSlider
+  if (slider) {
+    slider.style.setProperty('--volume-percentage', `${volume.value}%`)
   }
 })
 onMounted(async () => {
