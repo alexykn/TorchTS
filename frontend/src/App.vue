@@ -65,7 +65,6 @@ import {
 
 // State
 const ttsStore = useTTSStore()
-const { unifiedBuffer, audioDuration } = storeToRefs(ttsStore)
 
 const text = ref('')
 const voice = ref(DEFAULT_VOICE)
