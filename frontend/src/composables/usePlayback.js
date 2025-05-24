@@ -1,20 +1,26 @@
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useTTSStore } from '../stores/ttsStore'
 
 export function usePlayback(audioContext, gainNode) {
   const ttsStore = useTTSStore()
   const {
     volume,
-    setVolumeAndApply,
     isPlaying,
     currentSource,
     playbackProgress,
-    currentTime,
+    currentTime
+  } = storeToRefs(ttsStore)
+  const {
+    setVolumeAndApply,
     setIsPlaying,
     setCurrentSource,
     setPlaybackProgress,
     setCurrentTime
   } = ttsStore
+  
+  console.log('currentSource from ttsStore in usePlayback:', currentSource);
+  console.log('typeof currentSource from ttsStore:', typeof currentSource);
   const startTime = ref(0)
   const pausedTime = ref(0)
   const totalDuration = ref(0)
@@ -116,10 +122,20 @@ export function usePlayback(audioContext, gainNode) {
 
   function handleVolumeChange(event, setVolume) {
     const newVol = parseInt(event.target.value)
+    console.log('handleVolumeChange - raw value:', event.target.value)
+    console.log('handleVolumeChange - parsed newVol:', newVol)
+    console.log('handleVolumeChange - current volume.value before:', volume.value)
     setVolumeAndApply(newVol, setVolume)
-    event.target.style.setProperty('--volume-percentage', `${volume.value}%`)
+    console.log('handleVolumeChange - current volume.value after:', volume.value)
+    // Only set CSS property if the target has a style object (real DOM element)
+    if (event.target.style && event.target.style.setProperty) {
+      event.target.style.setProperty('--volume-percentage', `${volume.value}%`)
+    }
   }
 
+  console.log('About to return from usePlayback. currentSource is:', currentSource);
+  console.log('typeof currentSource before return:', typeof currentSource);
+  
   return {
     isPlaying,
     currentSource,

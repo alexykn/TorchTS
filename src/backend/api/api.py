@@ -47,7 +47,7 @@ app.add_middleware(
 @app.options("/{path:path}")
 async def preflight_handler(path: str):
     """Handle CORS preflight checks for any endpoint."""
-    return JSONResponse(status_code=200)
+    return JSONResponse(status_code=200, content={})
 
 # Pydantic models for request validation
 class TTSRequest(BaseModel):

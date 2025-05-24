@@ -20,8 +20,13 @@ export function useAudioContext() {
   }
 
   function setVolume(volume) {
+    console.log('useAudioContext setVolume - input volume:', volume)
     if (gainNode.value) {
+      console.log('useAudioContext setVolume - gainNode exists, setting gain value')
       gainNode.value.gain.value = volume
+      console.log('useAudioContext setVolume - gainNode.gain.value after:', gainNode.value.gain.value)
+    } else {
+      console.log('useAudioContext setVolume - gainNode is null/undefined')
     }
   }
 

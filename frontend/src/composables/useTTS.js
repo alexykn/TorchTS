@@ -52,6 +52,8 @@ export function useTTS() {
     togglePlayback
   } = usePlayback(audioContext, gainNode)
 
+  console.log('currentSource in useTTS setup:', currentSource);
+
   // Audio chunks management
   const { chunkCache, currentChunkIndex, fetchAudioChunk, fetchNextChunks, resetChunks } = useAudioChunks(audioContext)
 
@@ -64,6 +66,8 @@ export function useTTS() {
 
   // Single speaker generation
   async function generateSpeech(text, voice) {
+    console.log('currentSource at start of generateSpeech:', currentSource);
+    
     if (!text.trim()) {
       progressMessage.value = 'Please enter some text'
       return
@@ -97,6 +101,9 @@ export function useTTS() {
       // make sure we start in streaming mode for new generations:
       streamingMode = true
 
+      console.log('About to check currentSource.value. currentSource is:', currentSource);
+      console.log('typeof currentSource:', typeof currentSource);
+      
       if (currentSource.value) {
         currentSource.value.onended = null
         currentSource.value.stop()
@@ -132,6 +139,8 @@ export function useTTS() {
       await playNextChunk(text, voice)
     } catch (error) {
       console.error('Error during speech generation:', error)
+      console.log('currentSource IN CATCH BLOCK:', currentSource);
+      console.log('typeof currentSource IN CATCH BLOCK:', typeof currentSource);
       progressMessage.value = `Error: ${error.message}`
       isGenerating.value = false
       setIsPlaying(false)
@@ -315,9 +324,9 @@ export function useTTS() {
   }
 
   function setSyncedVolume(newVolumeValue) {
-    // newVolumeValue is expected to be 0-100 from UI controls
-    // setVolumeAndApply from the store will handle calling applyVolumeToAudioContext
-    setVolumeAndApply(newVolumeValue, applyVolumeToAudioContext);
+    // newVolumeValue is already normalized (0-1) from usePlayback
+    // Just apply it directly to the audio context
+    applyVolumeToAudioContext(newVolumeValue);
   }
 
   // When the user clicks play/pause we switch out of streaming mode.

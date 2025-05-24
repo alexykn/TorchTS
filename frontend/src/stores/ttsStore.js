@@ -11,6 +11,8 @@ export const useTTSStore = defineStore('tts', () => {
   // Playback state
   const isPlaying = ref(false)
   const currentSource = ref(null)
+  console.log('currentSource created in ttsStore:', currentSource);
+  console.log('typeof currentSource in ttsStore:', typeof currentSource);
   const playbackProgress = ref(0)
   const currentTime = ref(0)
 
@@ -58,9 +60,14 @@ export const useTTSStore = defineStore('tts', () => {
   }
 
   function setVolumeAndApply(val, applyFn) {
+    console.log('setVolumeAndApply - input val:', val)
+    console.log('setVolumeAndApply - volume.value before:', volume.value)
     volume.value = val
+    console.log('setVolumeAndApply - volume.value after:', volume.value)
     if (typeof applyFn === 'function') {
-      applyFn(val / 100)
+      const normalizedVal = val / 100
+      console.log('setVolumeAndApply - calling applyFn with normalized value:', normalizedVal)
+      applyFn(normalizedVal)
     }
   }
 
@@ -72,6 +79,8 @@ export const useTTSStore = defineStore('tts', () => {
     }
   }
 
+  console.log('About to return from ttsStore. currentSource is:', currentSource);
+  
   return {
     volume,
     isGenerating,

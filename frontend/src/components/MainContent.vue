@@ -180,7 +180,6 @@ const focusedElement = ref(null)
 const audioControls = ref(null)
 
 function onVolumeChange(val) {
-  localVolume.value = val
   emits('handleVolumeChange', { target: { value: val } })
 }
 function handleGenerateSpeech() { 
