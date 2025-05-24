@@ -41,6 +41,12 @@ app.add_middleware(
     expose_headers=["X-Total-Chunks", "X-Current-Chunk", "Content-Type", "Content-Length", "X-Session-ID"]
 )
 
+# Generic handler for CORS preflight requests
+@app.options("/{path:path}")
+async def preflight_handler(path: str):
+    """Handle CORS preflight checks for any endpoint."""
+    return JSONResponse(status_code=200)
+
 # Pydantic models for request validation
 class TTSRequest(BaseModel):
     text: str
