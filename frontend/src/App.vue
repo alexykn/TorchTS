@@ -286,14 +286,13 @@ async function handleDeleteAllFiles() {
     console.error('Error deleting all files:', error)
   }
 }
-async function onFileClick(file) {
+async function onFileClick(fileInfo) {
   if (!selectedProfile.value) return
   try {
-    await handleFileClick(selectedProfile.value, file, (content) => {
-      text.value = content
-      setOriginalFileContent(content)
-      setCurrentFileId(file.id)
-    })
+    const { file, content } = fileInfo
+    text.value = content
+    setOriginalFileContent(content)
+    setCurrentFileId(file.id)
   } catch (error) {
     console.error('Error handling file click:', error)
   }
