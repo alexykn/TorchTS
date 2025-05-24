@@ -17,7 +17,8 @@ export function useTTS() {
     unifiedBuffer,
     audioDuration,
     isDownloadComplete,
-    downloadProgress
+    downloadProgress,
+    volume: storeVolume, // Add this
   } = storeToRefs(ttsStore)
   const {
     updateUnifiedBuffer,
@@ -26,12 +27,13 @@ export function useTTS() {
     setPlaybackProgress,
     setCurrentTime,
     setIsDownloadComplete,
-    setDownloadProgress
+    setDownloadProgress,
+    setVolumeAndApply, // Add this
   } = ttsStore
   const audioQueue = [] // For streaming chunks
 
   // Audio context
-  const { audioContext, gainNode, initAudio, setVolume, closeAudio } = useAudioContext()
+  const { audioContext, gainNode, initAudio, setVolume: applyVolumeToAudioContext, closeAudio } = useAudioContext()
 
   // Playback control
   const {
@@ -71,6 +73,14 @@ export function useTTS() {
       currentAbortController = new AbortController()
       
       initAudio()
+      console.log('audioContext after initAudio():', audioContext);
+      console.log('audioContext.value after initAudio():', audioContext ? audioContext.value : 'audioContext is null');
+      if (!audioContext || !audioContext.value) {
+        console.error('AudioContext is not initialized. audioContext or audioContext.value is null/undefined after initAudio().');
+        progressMessage.value = 'Error: Audio context could not be initialized.';
+        isGenerating.value = false;
+        return; 
+      }
       if (audioContext.value && audioContext.value.state === 'suspended') {
         await audioContext.value.resume()
       }
@@ -226,6 +236,12 @@ export function useTTS() {
 
     try {
       initAudio()
+      if (!audioContext || !audioContext.value) {
+        console.error('AudioContext is not initialized in generateMultiSpeech. audioContext or audioContext.value is null/undefined after initAudio().');
+        progressMessage.value = 'Error: Audio context could not be initialized for multi-speech.';
+        isGenerating.value = false;
+        return; 
+      }
       if (audioContext.value && audioContext.value.state === 'suspended') {
         await audioContext.value.resume()
       }
@@ -298,6 +314,12 @@ export function useTTS() {
     }
   }
 
+  function setSyncedVolume(newVolumeValue) {
+    // newVolumeValue is expected to be 0-100 from UI controls
+    // setVolumeAndApply from the store will handle calling applyVolumeToAudioContext
+    setVolumeAndApply(newVolumeValue, applyVolumeToAudioContext);
+  }
+
   // When the user clicks play/pause we switch out of streaming mode.
   async function togglePlaybackHandler() {
     streamingMode = false
@@ -339,7 +361,7 @@ export function useTTS() {
       closeAudio()
     }
     
-    setVolume(1)
+    setSyncedVolume(80)
     progressMessage.value = ''
     setIsPlaying(false)
     // Reset our chunk state
@@ -386,7 +408,8 @@ export function useTTS() {
     togglePlayback: togglePlaybackHandler,
     reset,
     setTotalDuration,
-    setVolume,
+    setVolume: setSyncedVolume,
+    volume: storeVolume,
     // When the user seeks, we also set streamingMode to false
     seekToPosition: (pos) => { 
       streamingMode = false;
