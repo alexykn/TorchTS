@@ -10,9 +10,18 @@ except Exception:  # pragma: no cover - fallback if asyncio support missing
     ASYNC_AVAILABLE = False
 from datetime import datetime, timezone
 import os
+from pathlib import Path
 
-# Create the database directory if it doesn't exist
-os.makedirs('data', exist_ok=True)
+# Determine database location
+db_url = os.getenv("TORCHTS_DB_URL")
+if db_url is None:
+    db_path = Path.cwd() / "data" / "torchts.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db_url = f"sqlite:///{db_path}"
+else:
+    if db_url.startswith("sqlite:///"):
+        db_file = db_url[len("sqlite:///") :]
+        Path(db_file).parent.mkdir(parents=True, exist_ok=True)
 
 # Define a naming convention for indexes and constraints
 metadata = MetaData(naming_convention={
@@ -75,8 +84,9 @@ class AudioOutput(Base):
     def __repr__(self):
         return f"<AudioOutput(id={self.id}, file_path={self.file_path})>"
 
-# Create synchronous engine
-engine = create_engine('sqlite:///data/torchts.db')
+
+# Create engine
+engine = create_engine(db_url)
 
 # Attempt to create asynchronous engine if supported
 if ASYNC_AVAILABLE:
