@@ -2,6 +2,7 @@ import warnings
 from kokoro import KPipeline, KModel
 from rich.console import Console
 from rich import print as rprint
+from rich import traceback #Noqa
 import uvicorn
 import torch
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch.nn.utils.weight_norm")
