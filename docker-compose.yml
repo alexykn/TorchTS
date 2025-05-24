@@ -24,8 +24,8 @@ services:
       - ./src/frontend/templates/vue/src:/app/src
       - ./src/frontend/templates/vue/public:/app/public
     environment:
-      - VITE_API_BASE=http://backend:5005
+      - VITE_API_BASE=http://localhost:5005
       - DOCKER_ENV=true
     depends_on:
       - backend
-    restart: unless-stopped 
+    restart: unless-stopped
