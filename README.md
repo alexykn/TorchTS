@@ -32,9 +32,7 @@ torchts/
 │   │   ├── storage/         # Database models and storage
 │   │   ├── processing/      # Text and audio processing
 │   │   └── main.py         # Main entry point
-│   └── frontend/            # Frontend applications
-│       └── templates/
-│           └── vue/        # Vue.js application
+│   └── frontend/           # Vue.js application
 ```
 
 ## Installation
@@ -96,7 +94,7 @@ brew install espeak-ng
 
 1. Navigate to the Vue directory:
    ```bash
-   cd src/frontend/templates/vue
+   cd frontend
    ```
 2. Install dependencies:
    ```bash

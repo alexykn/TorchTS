@@ -1,4 +1,5 @@
 import { ref, onUnmounted, onMounted } from 'vue'
+import { useTTSStore } from '../stores/ttsStore'
 import { API_ENDPOINTS } from '../constants/api'
 import { useAudioContext } from './useAudioContext'
 import { useAudioChunks } from './useAudioChunks'
@@ -8,15 +9,12 @@ import { concatenateAudioBuffers } from '../utils/audioHelpers'
 import { useAPI } from './useAPI'
 
 export function useTTS() {
-  // Core state
-  const isGenerating = ref(false)
-  const progressMessage = ref('')
-  const unifiedBuffer = ref(null)
+  const ttsStore = useTTSStore()
+  const { isGenerating, progressMessage, unifiedBuffer, audioDuration, setUnifiedBuffer } = ttsStore
   const audioQueue = [] // For streaming chunks
 
   // Download and duration state
   const isDownloadComplete = ref(false)
-  const audioDuration = ref(0)
 
   // Audio context
   const { audioContext, gainNode, initAudio, setVolume, closeAudio } = useAudioContext()
@@ -67,11 +65,11 @@ export function useTTS() {
       progressMessage.value = 'Initializing...'
 
       // Reset state variables (including chunk state)
-      resetChunks() 
+      resetChunks()
       isDownloadComplete.value = false
       downloadProgress.value = 0
       audioQueue.length = 0
-      unifiedBuffer.value = null
+      setUnifiedBuffer(null)
       // make sure we start in streaming mode for new generations:
       streamingMode = true
 
@@ -101,9 +99,8 @@ export function useTTS() {
       }
 
       if (totalChunks === 1) {
-        unifiedBuffer.value = firstChunk.buffer
+        setUnifiedBuffer(firstChunk.buffer)
         setTotalDuration(unifiedBuffer.value.duration)
-        audioDuration.value = unifiedBuffer.value.duration
         isDownloadComplete.value = true
       } else {
         fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
@@ -228,7 +225,7 @@ export function useTTS() {
       downloadProgress.value = 0
       audioQueue.length = 0
       chunkCache.clear()
-      unifiedBuffer.value = null
+      setUnifiedBuffer(null)
       // For multi-speaker we immediately get a full WAV; so switch to unifiedBuffer mode:
       streamingMode = false
 
@@ -253,10 +250,9 @@ export function useTTS() {
 
       const sessionId = multiResponse.sessionId
       const arrayBuffer = multiResponse.arrayBuffer
-      unifiedBuffer.value = await audioContext.value.decodeAudioData(arrayBuffer)
+      setUnifiedBuffer(await audioContext.value.decodeAudioData(arrayBuffer))
 
       setTotalDuration(unifiedBuffer.value.duration)
-      audioDuration.value = unifiedBuffer.value.duration
       isDownloadComplete.value = true
 
       currentSource.value = audioContext.value.createBufferSource()
@@ -336,11 +332,10 @@ export function useTTS() {
     resetChunks()
     audioQueue.length = 0
     currentChunkIndex.value = 0
-    unifiedBuffer.value = null
+    setUnifiedBuffer(null)
     downloadProgress.value = 0
     playbackProgress.value = 0
     isDownloadComplete.value = false
-    audioDuration.value = 0
     currentTime.value = 0
     stopProgressUpdates()
   }

@@ -1,13 +1,15 @@
 import { ref } from 'vue'
+import { useTTSStore } from '../stores/ttsStore'
 
 export function usePlayback(audioContext, gainNode) {
+  const ttsStore = useTTSStore()
+  const { volume, setVolume: updateVolume } = ttsStore
   const isPlaying = ref(false)
   const currentSource = ref(null)
   const startTime = ref(0)
   const pausedTime = ref(0)
   const currentTime = ref(0)
   const playbackProgress = ref(0)
-  const volume = ref(80)
   const totalDuration = ref(0)
 
   function updatePlaybackProgress() {
@@ -106,7 +108,7 @@ export function usePlayback(audioContext, gainNode) {
 
   function handleVolumeChange(event, setVolume) {
     const newVol = parseFloat(event.target.value) / 100
-    volume.value = parseInt(event.target.value)
+    updateVolume(parseInt(event.target.value))
     setVolume(newVol)
     event.target.style.setProperty('--volume-percentage', `${volume.value}%`)
   }

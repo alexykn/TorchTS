@@ -30,8 +30,8 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./src/frontend/templates/vue/src:/app/src
-      - ./src/frontend/templates/vue/public:/app/public
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
     environment:
       - VITE_API_BASE=http://localhost:5005
       - DOCKER_ENV=true

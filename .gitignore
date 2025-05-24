@@ -4,4 +4,5 @@ __pycache__/
 .venv/
 .vscode/
 .DS_Store
+bun.lock
 data/

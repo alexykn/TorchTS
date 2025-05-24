@@ -56,6 +56,7 @@
 
 <script setup>
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import Sidebar from './components/Sidebar.vue'
 import MainContent from './components/MainContent.vue'
 import ModeSwitchDialog from './components/ModeSwitchDialog.vue'
@@ -66,6 +67,7 @@ import { useTheme } from './composables/useTheme'
 import { useProfiles } from './composables/useProfile'
 import { usePlayback } from './composables/usePlayback'
 import { useAudioContext } from './composables/useAudioContext'
+import { useTTSStore } from './stores/ttsStore'
 import { VOICE_OPTIONS, DEFAULT_VOICE, DEFAULT_VOLUME } from './constants/voices'
 import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from './constants/files'
 import './assets/global.css'
@@ -83,6 +85,9 @@ import {
 } from './utils/generalHelpers'
 
 // State
+const ttsStore = useTTSStore()
+const { unifiedBuffer, audioDuration } = storeToRefs(ttsStore)
+
 const text = ref('')
 const originalFileContent = ref('')
 const currentFileId = ref(null)
@@ -253,7 +258,7 @@ watch(volume, (newVal) => {
 watch(unifiedBuffer, (newBuffer) => {
   if (newBuffer) {
     setTotalDuration(newBuffer.duration)
-    audioDuration.value = newBuffer.duration
+    ttsStore.setUnifiedBuffer(newBuffer)
   }
 })
 
