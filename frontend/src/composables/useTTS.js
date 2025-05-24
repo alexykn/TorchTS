@@ -16,10 +16,6 @@ export function useTTS() {
     progressMessage,
     unifiedBuffer,
     audioDuration,
-    isPlaying,
-    currentSource,
-    playbackProgress,
-    currentTime,
     isDownloadComplete,
     downloadProgress
   } = storeToRefs(ttsStore)
