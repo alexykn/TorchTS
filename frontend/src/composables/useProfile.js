@@ -1,16 +1,15 @@
-import { ref } from 'vue'
 import { useAPI } from './useAPI'
+import { useProfilesStore } from '../stores/profilesStore'
 
 export function useProfiles() {
-  const profiles = ref([])
-  const currentProfile = ref(null)
-  const isLoading = ref(false)
+  const profilesStore = useProfilesStore()
+  const { profiles, currentProfile, isLoading, setProfiles, setCurrentProfile, setLoading } = profilesStore
 
   async function loadProfiles() {
-    isLoading.value = true
+    setLoading(true)
     try {
       const api = useAPI()
-      profiles.value = await api.getProfiles()
+      setProfiles(await api.getProfiles())
       
       const savedProfileId = localStorage.getItem('selectedProfileId')
       if (!savedProfileId && profiles.value.length > 0) {
@@ -21,7 +20,7 @@ export function useProfiles() {
     } catch (error) {
       console.error('Error loading profiles:', error)
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
@@ -43,10 +42,10 @@ export function useProfiles() {
 
   async function selectProfile(profileId) {
     if (!profileId) return null
-    
-    isLoading.value = true
+
+    setLoading(true)
     try {
-      currentProfile.value = profiles.value.find(p => p.id === profileId)
+      setCurrentProfile(profiles.value.find(p => p.id === profileId))
       
       const api = useAPI()
       const files = await api.getProfileFiles(profileId)
@@ -61,7 +60,7 @@ export function useProfiles() {
       console.error('Error selecting profile:', error)
       throw error
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
@@ -69,9 +68,9 @@ export function useProfiles() {
     try {
       const api = useAPI()
       await api.deleteProfile(profileId)
-      profiles.value = profiles.value.filter(p => p.id !== profileId)
+      setProfiles(profiles.value.filter(p => p.id !== profileId))
       if (currentProfile.value?.id === profileId) {
-        currentProfile.value = null
+        setCurrentProfile(null)
       }
       return true
     } catch (error) {

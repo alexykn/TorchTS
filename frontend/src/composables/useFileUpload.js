@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { useFileUploadStore } from '../stores/fileUploadStore'
 import { useAPI } from './useAPI'
 import {
   MIME_TYPES,
@@ -9,9 +10,8 @@ import {
 } from '../constants/files'
 
 export function useFileUpload() {
-  const uploadedFiles = ref([])
-  const progressMessage = ref('')
-  const isDragging = ref(false)
+  const fileStore = useFileUploadStore()
+  const { uploadedFiles, progressMessage, isDragging, setUploadedFiles, setProgressMessage, setIsDragging } = fileStore
   const dragCounter = ref(0)
 
   // Internal helper for file validation; remains private
@@ -98,14 +98,14 @@ export function useFileUpload() {
   function handleDragEnter(event) {
     event.preventDefault()
     dragCounter.value++
-    isDragging.value = true
+    setIsDragging(true)
   }
 
   function handleDragLeave(event) {
     event.preventDefault()
     dragCounter.value--
     if (dragCounter.value === 0) {
-      isDragging.value = false
+      setIsDragging(false)
     }
   }
 
@@ -116,7 +116,7 @@ export function useFileUpload() {
   function handleDrop(event) {
     event.preventDefault()
     dragCounter.value = 0
-    isDragging.value = false
+    setIsDragging(false)
     // Return all dropped files as an Array
     return Array.from(event.dataTransfer.files)
   }
@@ -219,7 +219,7 @@ export function useFileUpload() {
     deleteFile,
     deleteAllFiles,
     setFiles: files => {
-      uploadedFiles.value = files
+      setUploadedFiles(files)
     },
 
     // Drag and drop handlers

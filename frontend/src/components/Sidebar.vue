@@ -23,15 +23,20 @@
   </template>
   
   <script setup>
+  import { computed } from 'vue'
+  import { storeToRefs } from 'pinia'
   import FileUpload from './FileUpload.vue'
   import ProfileManagement from './ProfileManagement.vue'
-  
-  const props = defineProps({
-    uploadedFiles: { type: Array, required: true },
-    isDragging: { type: Boolean, required: true },
-    selectedProfile: { type: [Number, null], default: null },
-    profiles: { type: Array, required: true }
-  })
+  import { useFileUploadStore } from '../stores/fileUploadStore'
+  import { useProfilesStore } from '../stores/profilesStore'
+
+  const fileStore = useFileUploadStore()
+  const { uploadedFiles, isDragging } = storeToRefs(fileStore)
+
+  const profilesStore = useProfilesStore()
+  const { profiles, currentProfile } = storeToRefs(profilesStore)
+
+  const selectedProfile = computed(() => currentProfile.value?.id || null)
   const emits = defineEmits([
     'dragover',
     'drop',

@@ -67,12 +67,12 @@
   
   <script setup>
   import { ref } from 'vue'
+  import { storeToRefs } from 'pinia'
   import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from '../constants/files'
-  
-  const props = defineProps({
-    uploadedFiles: { type: Array, required: true },
-    isDragging: { type: Boolean, required: true }
-  })
+  import { useFileUploadStore } from '../stores/fileUploadStore'
+
+  const fileStore = useFileUploadStore()
+  const { uploadedFiles, isDragging } = storeToRefs(fileStore)
   const emits = defineEmits([
     'dragover',
     'drop',

@@ -1,10 +1,6 @@
 <template>
   <v-app :theme="isDark ? 'dark' : 'light'">
     <Sidebar
-      :uploadedFiles="uploadedFiles"
-      :isDragging="isDragging"
-      :selectedProfile="selectedProfile"
-      :profiles="profiles"
       @dragover="handleDragOver"
       @drop="handleFileDrop"
       @dragenter="handleDragEnter"
@@ -27,13 +23,10 @@
       :voice="voice"
       :volume="volume"
       :isPlaying="isPlaying"
-      :isGenerating="isGenerating"
       :currentSource="currentSource"
       :playbackProgress="playbackProgress"
       :isDownloadComplete="isDownloadComplete"
       :currentTime="currentTime"
-      :audioDuration="audioDuration"
-      :progressMessage="progressMessage"
       :isDark="isDark"
       @handleVolumeChange="handleVolumeChange"
       @generateSpeech="handleGenerateSpeech"
@@ -135,15 +128,11 @@ const {
   handleFileClick,
 } = useFileUpload()
 const { isDark, toggleTheme } = useTheme()
-const { profiles, loadProfiles, createAndApplyProfile, applyProfile, removeProfile } = useProfiles()
+const { profiles, currentProfile, loadProfiles, createAndApplyProfile, applyProfile, removeProfile } = useProfiles()
 
 // Computed progress message
 const progressMessage = computed(() => ttsProgress.value || fileProgress.value)
 
-// Profile state
-const selectedProfile = ref(
-  localStorage.getItem('selectedProfileId') ? parseInt(localStorage.getItem('selectedProfileId')) : null
-)
 
 // Mode selection state
 const currentMode = ref('single')
@@ -173,7 +162,6 @@ async function onProfileSelect(profileId) {
       setVolume: (val) => { volume.value = val },
       setFiles: (files) => { setFiles(files) }
     })
-    selectedProfile.value = profileId
   } catch (error) {
     console.error('Error selecting profile:', error)
   }
@@ -190,16 +178,14 @@ async function onProfileCreate(data) {
         setFiles: (files) => { setFiles(files) }
       }
     )
-    selectedProfile.value = profile.id
   } catch (error) {
     console.error('Error creating profile:', error)
   }
 }
 async function onProfileDelete() {
-  if (!selectedProfile.value) return
+  if (!currentProfile.value?.id) return
   try {
-    await removeProfile(selectedProfile.value)
-    selectedProfile.value = null
+    await removeProfile(currentProfile.value.id)
   } catch (error) {
     console.error('Error deleting profile:', error)
   }
@@ -209,7 +195,7 @@ async function onProfileDelete() {
 async function handleFileSelect(event) {
   await handleFileSelectFromUpload(
     event,
-    selectedProfile.value,
+    currentProfile.value?.id,
     extractedText => { text.value = extractedText },
     () => { if (fileInput.value) { fileInput.value.value = '' } }
   )
@@ -217,7 +203,7 @@ async function handleFileSelect(event) {
 async function handleFileDrop(event) {
   await handleFileDropFromUpload(
     event,
-    selectedProfile.value,
+    currentProfile.value?.id,
     extractedText => { text.value = extractedText },
     () => { if (fileInput.value) { fileInput.value.value = '' } }
   )
@@ -270,8 +256,9 @@ onMounted(() => {
 })
 onMounted(async () => {
   await loadProfiles()
-  if (selectedProfile.value) {
-    await onProfileSelect(selectedProfile.value)
+  const savedProfileId = localStorage.getItem('selectedProfileId')
+  if (savedProfileId) {
+    await onProfileSelect(parseInt(savedProfileId))
   }
 })
 
@@ -325,21 +312,21 @@ function onCancelTabSwitch() {
   });
 }
 function handleFileDelete(fileId) {
-  if (!selectedProfile.value) return
-  deleteFile(selectedProfile.value, fileId)
+  if (!currentProfile.value?.id) return
+  deleteFile(currentProfile.value.id, fileId)
 }
 async function handleDeleteAllFiles() {
-  if (!selectedProfile.value) return
+  if (!currentProfile.value?.id) return
   try {
-    await deleteAllFiles(selectedProfile.value)
+    await deleteAllFiles(currentProfile.value.id)
   } catch (error) {
     console.error('Error deleting all files:', error)
   }
 }
 async function onFileClick(file) {
-  if (!selectedProfile.value) return
+  if (!currentProfile.value?.id) return
   try {
-    await handleFileClick(selectedProfile.value, file, (content) => {
+    await handleFileClick(currentProfile.value.id, file, (content) => {
       text.value = content
       originalFileContent.value = content
       currentFileId.value = file.id

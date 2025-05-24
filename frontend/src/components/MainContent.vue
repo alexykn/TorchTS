@@ -99,8 +99,10 @@
   
 <script setup>
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { formatTime } from '../utils/generalHelpers'
 import { VOICE_OPTIONS } from '../constants/voices'
+import { useTTSStore } from '../stores/ttsStore'
   
 // Import new components
 import TextEntryField from './TextEntryField.vue'
@@ -115,18 +117,17 @@ const props = defineProps({
   currentMode: { type: String, required: true },
   text: { type: String, required: true },
   voice: { type: String, required: true },
-  volume: { type: Number, required: true },
   multiSpeakerVoices: { type: Object, required: true },
   isPlaying: { type: Boolean, required: true },
-  isGenerating: { type: Boolean, required: true },
   currentSource: { type: [Object, null], default: null },
   playbackProgress: { type: Number, required: true },
   isDownloadComplete: { type: Boolean, required: true },
   currentTime: { type: Number, required: true },
-  audioDuration: { type: Number, required: true },
-  progressMessage: { type: String, required: false },
   isDark: { type: Boolean, required: true }
 })
+
+const ttsStore = useTTSStore()
+const { volume, isGenerating, progressMessage, audioDuration } = storeToRefs(ttsStore)
   
 const emits = defineEmits([
   'update:text',
@@ -156,7 +157,7 @@ const localVoice = computed({
   set: newValue => emits('update:voice', newValue)
 })
 const localVolume = computed({
-  get: () => props.volume,
+  get: () => volume.value,
   set: newValue => emits('update:volume', newValue)
 })
   
