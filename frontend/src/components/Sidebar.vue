@@ -1,8 +1,6 @@
 <template>
     <v-navigation-drawer permanent class="file-sidebar" width="300" elevation="1">
       <FileUpload
-        :uploadedFiles="uploadedFiles"
-        :isDragging="isDragging"
         @dragover="handleDragOver"
         @drop="handleFileDrop"
         @dragenter="handleDragEnter"
@@ -27,8 +25,6 @@
   import ProfileManagement from './ProfileManagement.vue'
   
   const props = defineProps({
-    uploadedFiles: { type: Array, required: true },
-    isDragging: { type: Boolean, required: true },
     selectedProfile: { type: [Number, null], default: null },
     profiles: { type: Array, required: true }
   })
