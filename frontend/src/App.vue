@@ -20,6 +20,7 @@
     <MainContent
       ref="mainContent"
       v-model:text="text"
+      @update:text="onTextUpdate"
       v-model:voice="voice"
       v-model:volume="volume"
       v-model:multiSpeakerVoices="multiSpeakerVoices"
@@ -55,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import Sidebar from './components/Sidebar.vue'
 import MainContent from './components/MainContent.vue'
@@ -68,6 +69,7 @@ import { useProfiles } from './composables/useProfile'
 import { usePlayback } from './composables/usePlayback'
 import { useAudioContext } from './composables/useAudioContext'
 import { useTTSStore } from './stores/ttsStore'
+import { useFileUploadStore } from './stores/fileUploadStore'
 import { VOICE_OPTIONS, DEFAULT_VOICE, DEFAULT_VOLUME } from './constants/voices'
 import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from './constants/files'
 import './assets/global.css'
@@ -89,8 +91,8 @@ const ttsStore = useTTSStore()
 const { unifiedBuffer, audioDuration } = storeToRefs(ttsStore)
 
 const text = ref('')
-const originalFileContent = ref('')
-const currentFileId = ref(null)
+const fileUploadStore = useFileUploadStore()
+const { currentFileId, originalFileContent } = storeToRefs(fileUploadStore)
 const voice = ref(DEFAULT_VOICE)
 const focusedElement = ref(null)
 const fileInput = ref(null)
@@ -153,13 +155,6 @@ const multiSpeakerVoices = ref({ 1: DEFAULT_VOICE, 2: DEFAULT_VOICE, 3: DEFAULT_
 const showTabSwitchDialog = ref(false)
 const pendingTabSwitch = ref(null)
 
-// Add this watch effect after the state declarations
-watch(text, (newValue) => {
-  // If text is edited and differs from original file content, clear the file association
-  if (currentFileId.value && newValue !== originalFileContent.value) {
-    currentFileId.value = null
-  }
-}, { deep: true })
 
 // --- PROFILE MANAGEMENT FUNCTIONS ---
 async function onProfileSelect(profileId) {
@@ -170,7 +165,7 @@ async function onProfileSelect(profileId) {
         voice.value = val
         // Pipeline will be automatically updated via the watch in SpeakerSelection
       },
-      setVolume: (val) => { volume.value = val },
+      setVolume: (val) => { ttsStore.updateVolume(val, setVolume) },
       setFiles: (files) => { setFiles(files) }
     })
     selectedProfile.value = profileId
@@ -186,7 +181,7 @@ async function onProfileCreate(data) {
       data.volume / 100,
       {
         setVoice: (val) => { voice.value = val },
-        setVolume: (val) => { volume.value = val },
+        setVolume: (val) => { ttsStore.updateVolume(val, setVolume) },
         setFiles: (files) => { setFiles(files) }
       }
     )
@@ -222,6 +217,10 @@ async function handleFileDrop(event) {
     () => { if (fileInput.value) { fileInput.value.value = '' } }
   )
 }
+
+function onTextUpdate(val) {
+  fileUploadStore.clearCurrentFileIfTextEdited(val)
+}
 function handleVolumeChange(event) {
   handleVolumeChangeFromPlayback(event, setVolume)
 }
@@ -246,27 +245,19 @@ async function handleReset() {
     resetTTS,
     stopGeneration
   });
+  fileUploadStore.setCurrentFile(null, '')
 }
 function handleSeek(event) {
   const pos = parseFloat(event.target.value)
   if (!isNaN(pos)) { seekToPosition(pos) }
 }
 
-watch(volume, (newVal) => {
-  setVolume(newVal / 100)
-})
-watch(unifiedBuffer, (newBuffer) => {
-  if (newBuffer) {
-    setTotalDuration(newBuffer.duration)
-    ttsStore.setUnifiedBuffer(newBuffer)
-  }
-})
-
 onMounted(() => {
   const slider = mainContent.value?.audioControls?.volumeSlider
   if (slider) {
     slider.style.setProperty('--volume-percentage', `${volume.value}%`)
   }
+  ttsStore.updateVolume(volume.value, setVolume)
 })
 onMounted(async () => {
   await loadProfiles()
@@ -276,13 +267,13 @@ onMounted(async () => {
 })
 
 const keydownHandler = event => {
-  globalHandleKeydown(event, { 
-    currentSource, 
-    togglePlayback, 
-    volume, 
-    setVolume, 
-    isDownloadComplete, 
-    seekRelative 
+  globalHandleKeydown(event, {
+    currentSource,
+    togglePlayback,
+    volume,
+    updateVolume: ttsStore.updateVolume,
+    setVolume,
+    seekRelative
   });
 }
 onMounted(() => {
@@ -341,8 +332,7 @@ async function onFileClick(file) {
   try {
     await handleFileClick(selectedProfile.value, file, (content) => {
       text.value = content
-      originalFileContent.value = content
-      currentFileId.value = file.id
+      fileUploadStore.setCurrentFile(file.id, content)
     })
   } catch (error) {
     console.error('Error handling file click:', error)

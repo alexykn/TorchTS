@@ -12,12 +12,26 @@ export const useTTSStore = defineStore('tts', () => {
     volume.value = val
   }
 
+  function updateVolume(val, applyVolume) {
+    setVolume(val)
+    if (typeof applyVolume === 'function') {
+      applyVolume(val / 100)
+    }
+  }
+
   function setUnifiedBuffer(buffer) {
     unifiedBuffer.value = buffer
     if (buffer) {
       audioDuration.value = buffer.duration
     } else {
       audioDuration.value = 0
+    }
+  }
+
+  function updateUnifiedBuffer(buffer, setTotalDuration) {
+    setUnifiedBuffer(buffer)
+    if (typeof setTotalDuration === 'function') {
+      setTotalDuration(buffer ? buffer.duration : 0)
     }
   }
 
@@ -28,6 +42,8 @@ export const useTTSStore = defineStore('tts', () => {
     unifiedBuffer,
     audioDuration,
     setVolume,
-    setUnifiedBuffer
+    setUnifiedBuffer,
+    updateVolume,
+    updateUnifiedBuffer
   }
 })

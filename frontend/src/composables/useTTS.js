@@ -10,7 +10,7 @@ import { useAPI } from './useAPI'
 
 export function useTTS() {
   const ttsStore = useTTSStore()
-  const { isGenerating, progressMessage, unifiedBuffer, audioDuration, setUnifiedBuffer } = ttsStore
+  const { isGenerating, progressMessage, unifiedBuffer, audioDuration, updateUnifiedBuffer } = ttsStore
   const audioQueue = [] // For streaming chunks
 
   // Download and duration state
@@ -69,7 +69,7 @@ export function useTTS() {
       isDownloadComplete.value = false
       downloadProgress.value = 0
       audioQueue.length = 0
-      setUnifiedBuffer(null)
+      updateUnifiedBuffer(null, setTotalDuration)
       // make sure we start in streaming mode for new generations:
       streamingMode = true
 
@@ -99,8 +99,7 @@ export function useTTS() {
       }
 
       if (totalChunks === 1) {
-        setUnifiedBuffer(firstChunk.buffer)
-        setTotalDuration(unifiedBuffer.value.duration)
+        updateUnifiedBuffer(firstChunk.buffer, setTotalDuration)
         isDownloadComplete.value = true
       } else {
         fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
@@ -225,7 +224,7 @@ export function useTTS() {
       downloadProgress.value = 0
       audioQueue.length = 0
       chunkCache.clear()
-      setUnifiedBuffer(null)
+      updateUnifiedBuffer(null, setTotalDuration)
       // For multi-speaker we immediately get a full WAV; so switch to unifiedBuffer mode:
       streamingMode = false
 
@@ -250,9 +249,10 @@ export function useTTS() {
 
       const sessionId = multiResponse.sessionId
       const arrayBuffer = multiResponse.arrayBuffer
-      setUnifiedBuffer(await audioContext.value.decodeAudioData(arrayBuffer))
-
-      setTotalDuration(unifiedBuffer.value.duration)
+      updateUnifiedBuffer(
+        await audioContext.value.decodeAudioData(arrayBuffer),
+        setTotalDuration
+      )
       isDownloadComplete.value = true
 
       currentSource.value = audioContext.value.createBufferSource()
@@ -332,7 +332,7 @@ export function useTTS() {
     resetChunks()
     audioQueue.length = 0
     currentChunkIndex.value = 0
-    setUnifiedBuffer(null)
+    updateUnifiedBuffer(null, setTotalDuration)
     downloadProgress.value = 0
     playbackProgress.value = 0
     isDownloadComplete.value = false
