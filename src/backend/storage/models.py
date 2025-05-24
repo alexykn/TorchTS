@@ -100,16 +100,19 @@ else:
     ASYNC_DB = False
 
 # Create all tables
-Base.metadata.create_all(engine)
+if engine is not None:
+    Base.metadata.create_all(engine)
 
 # Create default profile if none exists
 def create_default_profile():
+    if engine is None:
+        return
     with Session(engine) as session:
         if session.query(Profile).count() == 0:
             default_profile = Profile(
                 name="Default Profile",
                 voice_preset="am_michael",  # Default voice
-                volume=0.8  # Match frontend volume setting
+                volume=0.8,  # Match frontend volume setting
             )
             session.add(default_profile)
             session.commit()
