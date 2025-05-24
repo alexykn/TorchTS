@@ -135,15 +135,12 @@ const {
   handleFileClick,
 } = useFileUpload()
 const { isDark, toggleTheme } = useTheme()
-const { profiles, loadProfiles, createAndApplyProfile, applyProfile, removeProfile } = useProfiles()
+const { profiles, selectedProfile, loadProfiles, createAndApplyProfile, applyProfile, removeProfile } = useProfiles()
 
 // Computed progress message
 const progressMessage = computed(() => ttsProgress.value || fileProgress.value)
 
-// Profile state
-const selectedProfile = ref(
-  localStorage.getItem('selectedProfileId') ? parseInt(localStorage.getItem('selectedProfileId')) : null
-)
+// Profile state is managed by the Pinia store
 
 // Mode selection state
 const currentMode = ref('single')
@@ -173,7 +170,6 @@ async function onProfileSelect(profileId) {
       setVolume: (val) => { volume.value = val },
       setFiles: (files) => { setFiles(files) }
     })
-    selectedProfile.value = profileId
   } catch (error) {
     console.error('Error selecting profile:', error)
   }
@@ -190,7 +186,6 @@ async function onProfileCreate(data) {
         setFiles: (files) => { setFiles(files) }
       }
     )
-    selectedProfile.value = profile.id
   } catch (error) {
     console.error('Error creating profile:', error)
   }
@@ -199,7 +194,6 @@ async function onProfileDelete() {
   if (!selectedProfile.value) return
   try {
     await removeProfile(selectedProfile.value)
-    selectedProfile.value = null
   } catch (error) {
     console.error('Error deleting profile:', error)
   }
