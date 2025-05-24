@@ -3,13 +3,20 @@ import { useTTSStore } from '../stores/ttsStore'
 
 export function usePlayback(audioContext, gainNode) {
   const ttsStore = useTTSStore()
-  const { volume, setVolume: updateVolume } = ttsStore
-  const isPlaying = ref(false)
-  const currentSource = ref(null)
+  const {
+    volume,
+    setVolume: updateVolume,
+    isPlaying,
+    currentSource,
+    playbackProgress,
+    currentTime,
+    setIsPlaying,
+    setCurrentSource,
+    setPlaybackProgress,
+    setCurrentTime
+  } = ttsStore
   const startTime = ref(0)
   const pausedTime = ref(0)
-  const currentTime = ref(0)
-  const playbackProgress = ref(0)
   const totalDuration = ref(0)
 
   function updatePlaybackProgress() {
@@ -17,8 +24,8 @@ export function usePlayback(audioContext, gainNode) {
 
     const elapsed = audioContext.value.currentTime - startTime.value
     if (totalDuration.value > 0) {
-      currentTime.value = Math.min(totalDuration.value, elapsed)
-      playbackProgress.value = Math.min(100, (elapsed / totalDuration.value) * 100)
+      setCurrentTime(Math.min(totalDuration.value, elapsed))
+      setPlaybackProgress(Math.min(100, (elapsed / totalDuration.value) * 100))
     }
 
     if (isPlaying.value) {
@@ -34,15 +41,15 @@ export function usePlayback(audioContext, gainNode) {
   function stopProgressUpdates() {
     if (audioContext.value) {
       const elapsed = audioContext.value.currentTime - startTime.value
-      currentTime.value = Math.min(totalDuration.value, elapsed)
-      playbackProgress.value = Math.min(100, (elapsed / totalDuration.value) * 100)
+      setCurrentTime(Math.min(totalDuration.value, elapsed))
+      setPlaybackProgress(Math.min(100, (elapsed / totalDuration.value) * 100))
     }
   }
 
   function setTotalDuration(duration) {
     totalDuration.value = duration
-    currentTime.value = 0
-    playbackProgress.value = 0
+    setCurrentTime(0)
+    setPlaybackProgress(0)
   }
 
   function seekToPosition(position, unifiedBuffer) {
@@ -57,13 +64,14 @@ export function usePlayback(audioContext, gainNode) {
         currentSource.value.disconnect()
       }
 
-      currentSource.value = audioContext.value.createBufferSource()
-      currentSource.value.buffer = unifiedBuffer.value
-      currentSource.value.connect(gainNode.value)
+      const newSource = audioContext.value.createBufferSource()
+      newSource.buffer = unifiedBuffer.value
+      newSource.connect(gainNode.value)
+      setCurrentSource(newSource)
 
       startTime.value = audioContext.value.currentTime - newTime
-      currentTime.value = newTime
-      playbackProgress.value = boundedPosition
+      setCurrentTime(newTime)
+      setPlaybackProgress(boundedPosition)
 
       if (isPlaying.value) {
         currentSource.value.start(0, newTime)
@@ -71,7 +79,7 @@ export function usePlayback(audioContext, gainNode) {
       }
 
       currentSource.value.onended = () => {
-        isPlaying.value = false
+        setIsPlaying(false)
         stopProgressUpdates()
       }
     }
@@ -92,14 +100,14 @@ export function usePlayback(audioContext, gainNode) {
     if (!currentSource.value) return
 
     if (isPlaying.value) {
-      isPlaying.value = false
+      setIsPlaying(false)
       await audioContext.value.suspend()
       pausedTime.value = audioContext.value.currentTime - startTime.value
       stopProgressUpdates()
     } else {
       await audioContext.value.resume()
       startTime.value = audioContext.value.currentTime - pausedTime.value
-      isPlaying.value = true
+      setIsPlaying(true)
       if (unifiedBuffer && unifiedBuffer.value) {
         requestAnimationFrame(updatePlaybackProgress)
       }

@@ -10,11 +10,26 @@ import { useAPI } from './useAPI'
 
 export function useTTS() {
   const ttsStore = useTTSStore()
-  const { isGenerating, progressMessage, unifiedBuffer, audioDuration, setUnifiedBuffer } = ttsStore
+  const {
+    isGenerating,
+    progressMessage,
+    unifiedBuffer,
+    audioDuration,
+    isPlaying,
+    currentSource,
+    playbackProgress,
+    currentTime,
+    isDownloadComplete,
+    downloadProgress,
+    setUnifiedBuffer,
+    setIsPlaying,
+    setCurrentSource,
+    setPlaybackProgress,
+    setCurrentTime,
+    setIsDownloadComplete,
+    setDownloadProgress
+  } = ttsStore
   const audioQueue = [] // For streaming chunks
-
-  // Download and duration state
-  const isDownloadComplete = ref(false)
 
   // Audio context
   const { audioContext, gainNode, initAudio, setVolume, closeAudio } = useAudioContext()
@@ -37,7 +52,7 @@ export function useTTS() {
   } = usePlayback(audioContext, gainNode)
 
   // Audio chunks management
-  const { chunkCache, downloadProgress, currentChunkIndex, fetchAudioChunk, fetchNextChunks, resetChunks } = useAudioChunks(audioContext)
+  const { chunkCache, currentChunkIndex, fetchAudioChunk, fetchNextChunks, resetChunks } = useAudioChunks(audioContext)
 
   let currentAbortController = null
   let currentSessionId = null
@@ -66,8 +81,8 @@ export function useTTS() {
 
       // Reset state variables (including chunk state)
       resetChunks()
-      isDownloadComplete.value = false
-      downloadProgress.value = 0
+      setIsDownloadComplete(false)
+      setDownloadProgress(0)
       audioQueue.length = 0
       setUnifiedBuffer(null)
       // make sure we start in streaming mode for new generations:
@@ -101,7 +116,7 @@ export function useTTS() {
       if (totalChunks === 1) {
         setUnifiedBuffer(firstChunk.buffer)
         setTotalDuration(unifiedBuffer.value.duration)
-        isDownloadComplete.value = true
+        setIsDownloadComplete(true)
       } else {
         fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
       }
@@ -111,7 +126,7 @@ export function useTTS() {
       console.error('Error during speech generation:', error)
       progressMessage.value = `Error: ${error.message}`
       isGenerating.value = false
-      isPlaying.value = false
+      setIsPlaying(false)
       if (currentSource.value) {
         currentSource.value.onended = null
         currentSource.value.stop()
@@ -143,7 +158,7 @@ export function useTTS() {
         currentSource.value.sessionId = currentSessionId
 
         if (!isPlaying.value) {
-          isPlaying.value = true
+          setIsPlaying(true)
           startTime.value = audioContext.value.currentTime - pausedTime.value
           startProgressUpdates()
         }
@@ -158,7 +173,7 @@ export function useTTS() {
             setTimeout(() => playNextChunk(text, voice), 200)
           } else {
             // Generation complete and no queued chunk left => playback is finished.
-            isPlaying.value = false
+            setIsPlaying(false)
             progressMessage.value = 'Playback complete!'
             stopProgressUpdates()
           }
@@ -188,14 +203,14 @@ export function useTTS() {
         currentSource.value.sessionId = currentSessionId
 
         if (!isPlaying.value) {
-          isPlaying.value = true
+          setIsPlaying(true)
           startTime.value = audioContext.value.currentTime
           startProgressUpdates()
         }
 
         currentSource.value.start(0)
         currentSource.value.onended = () => {
-          isPlaying.value = false
+          setIsPlaying(false)
           progressMessage.value = 'Playback complete!'
           stopProgressUpdates()
         }
@@ -221,8 +236,8 @@ export function useTTS() {
       progressMessage.value = 'Initializing multi-speaker generation...'
 
       currentChunkIndex.value = 0
-      isDownloadComplete.value = false
-      downloadProgress.value = 0
+      setIsDownloadComplete(false)
+      setDownloadProgress(0)
       audioQueue.length = 0
       chunkCache.clear()
       setUnifiedBuffer(null)
@@ -253,19 +268,19 @@ export function useTTS() {
       setUnifiedBuffer(await audioContext.value.decodeAudioData(arrayBuffer))
 
       setTotalDuration(unifiedBuffer.value.duration)
-      isDownloadComplete.value = true
+      setIsDownloadComplete(true)
 
       currentSource.value = audioContext.value.createBufferSource()
       currentSource.value.buffer = unifiedBuffer.value
       currentSource.value.connect(gainNode.value)
       currentSource.value.sessionId = sessionId
-      isPlaying.value = true
+      setIsPlaying(true)
       startTime.value = audioContext.value.currentTime
       currentSource.value.start(0)
       startProgressUpdates()
 
       currentSource.value.onended = () => {
-        isPlaying.value = false
+        setIsPlaying(false)
         progressMessage.value = 'Playback complete!'
         stopProgressUpdates()
       }
@@ -275,7 +290,7 @@ export function useTTS() {
       console.error('Error during multi-speaker speech generation:', error)
       progressMessage.value = `Error: ${error.message}`
       isGenerating.value = false
-      isPlaying.value = false
+      setIsPlaying(false)
       if (currentSource.value) {
         currentSource.value.onended = null
         currentSource.value.stop()
@@ -314,29 +329,29 @@ export function useTTS() {
       await stopGeneration()
     }
     isGenerating.value = false
-    
+
     if (currentSource.value) {
       currentSource.value.onended = null
       currentSource.value.stop()
       currentSource.value.disconnect()
-      currentSource.value = null
     }
+    setCurrentSource(null)
     if (audioContext.value) {
       closeAudio()
     }
     
     setVolume(1)
     progressMessage.value = ''
-    isPlaying.value = false
+    setIsPlaying(false)
     // Reset our chunk state
     resetChunks()
     audioQueue.length = 0
     currentChunkIndex.value = 0
     setUnifiedBuffer(null)
-    downloadProgress.value = 0
-    playbackProgress.value = 0
-    isDownloadComplete.value = false
-    currentTime.value = 0
+    setDownloadProgress(0)
+    setPlaybackProgress(0)
+    setIsDownloadComplete(false)
+    setCurrentTime(0)
     stopProgressUpdates()
   }
 
