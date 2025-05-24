@@ -7,6 +7,10 @@ const backendUrl = process.env.DOCKER_ENV
 
 export default defineConfig({
   plugins: [vue()],
+  test: {
+    globals: true,
+    environment: 'jsdom'
+  },
   server: {
     proxy: {
       '/generate': backendUrl,
