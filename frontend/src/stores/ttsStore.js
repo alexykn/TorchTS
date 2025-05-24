@@ -8,6 +8,16 @@ export const useTTSStore = defineStore('tts', () => {
   const unifiedBuffer = ref(null)
   const audioDuration = ref(0)
 
+  // Playback state
+  const isPlaying = ref(false)
+  const currentSource = ref(null)
+  const playbackProgress = ref(0)
+  const currentTime = ref(0)
+
+  // Download state
+  const isDownloadComplete = ref(false)
+  const downloadProgress = ref(0)
+
   function setVolume(val) {
     volume.value = val
   }
@@ -21,13 +31,51 @@ export const useTTSStore = defineStore('tts', () => {
     }
   }
 
+  // Playback actions
+  function setIsPlaying(val) {
+    isPlaying.value = val
+  }
+
+  function setCurrentSource(source) {
+    currentSource.value = source
+  }
+
+  function setPlaybackProgress(progress) {
+    playbackProgress.value = progress
+  }
+
+  function setCurrentTime(time) {
+    currentTime.value = time
+  }
+
+  // Download actions
+  function setIsDownloadComplete(val) {
+    isDownloadComplete.value = val
+  }
+
+  function setDownloadProgress(val) {
+    downloadProgress.value = val
+  }
+
   return {
     volume,
     isGenerating,
     progressMessage,
     unifiedBuffer,
     audioDuration,
+    isPlaying,
+    currentSource,
+    playbackProgress,
+    currentTime,
+    isDownloadComplete,
+    downloadProgress,
     setVolume,
-    setUnifiedBuffer
+    setUnifiedBuffer,
+    setIsPlaying,
+    setCurrentSource,
+    setPlaybackProgress,
+    setCurrentTime,
+    setIsDownloadComplete,
+    setDownloadProgress
   }
 })

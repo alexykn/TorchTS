@@ -1,10 +1,12 @@
 import { ref } from 'vue'
 import { useAPI } from './useAPI'
 import { concatenateAudioBuffers } from '../utils/audioHelpers'
+import { useTTSStore } from '../stores/ttsStore'
 
 export function useAudioChunks(audioContext) {
+  const ttsStore = useTTSStore()
+  const { downloadProgress, setDownloadProgress } = ttsStore
   const chunkCache = new Map()
-  const downloadProgress = ref(0)
   const currentChunkIndex = ref(0)
   let totalChunks = 0
   let validatedTotalChunks = null
@@ -45,7 +47,7 @@ export function useAudioChunks(audioContext) {
 
       if (!chunkCache.has(currentChunk)) {
         chunkCache.set(currentChunk, audioBuffer)
-        downloadProgress.value = Math.round((chunkCache.size / totalChunks) * 100)
+        setDownloadProgress(Math.round((chunkCache.size / totalChunks) * 100))
       }
 
       return {
@@ -135,7 +137,6 @@ export function useAudioChunks(audioContext) {
 
   return {
     chunkCache,
-    downloadProgress,
     currentChunkIndex,
     fetchAudioChunk,
     fetchNextChunks,
