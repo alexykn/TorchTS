@@ -1,8 +1,6 @@
 <template>
   <v-app :theme="isDark ? 'dark' : 'light'">
     <Sidebar
-      :uploadedFiles="uploadedFiles"
-      :isDragging="isDragging"
       :selectedProfile="selectedProfile"
       :profiles="profiles"
       @dragover="handleDragOver"
@@ -62,14 +60,13 @@ import MainContent from './components/MainContent.vue'
 import ModeSwitchDialog from './components/ModeSwitchDialog.vue'
 
 import { useTTS } from './composables/useTTS'
-import { useFileUpload } from './composables/useFileUpload'
+import { useFileUploadStore } from './stores/fileUploadStore'
 import { useTheme } from './composables/useTheme'
 import { useProfiles } from './composables/useProfile'
 import { usePlayback } from './composables/usePlayback'
 import { useAudioContext } from './composables/useAudioContext'
 import { useTTSStore } from './stores/ttsStore'
 import { VOICE_OPTIONS, DEFAULT_VOICE, DEFAULT_VOLUME } from './constants/voices'
-import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from './constants/files'
 import './assets/global.css'
 import './assets/components.css'
 import './assets/layout.css'
@@ -89,8 +86,6 @@ const ttsStore = useTTSStore()
 const { unifiedBuffer, audioDuration } = storeToRefs(ttsStore)
 
 const text = ref('')
-const originalFileContent = ref('')
-const currentFileId = ref(null)
 const voice = ref(DEFAULT_VOICE)
 const focusedElement = ref(null)
 const fileInput = ref(null)
@@ -120,20 +115,27 @@ const {
   unifiedBuffer,
   setTotalDuration,
 } = useTTS()
+const fileUploadStore = useFileUploadStore()
 const {
   uploadedFiles,
   progressMessage: fileProgress,
   isDragging,
+  currentFileId,
+  originalFileContent,
+} = storeToRefs(fileUploadStore)
+const {
   deleteFile,
   deleteAllFiles,
   setFiles,
   handleDragEnter,
   handleDragLeave,
   handleDragOver,
-  handleFileSelect: handleFileSelectFromUpload,
-  handleFileDrop: handleFileDropFromUpload,
+  handleFileSelect: handleFileSelectAction,
+  handleFileDrop: handleFileDropAction,
   handleFileClick,
-} = useFileUpload()
+  setCurrentFileId,
+  setOriginalFileContent,
+} = fileUploadStore
 const { isDark, toggleTheme } = useTheme()
 const { profiles, selectedProfile, loadProfiles, createAndApplyProfile, applyProfile, removeProfile } = useProfiles()
 
@@ -201,7 +203,7 @@ async function onProfileDelete() {
 
 // File Upload handlers
 async function handleFileSelect(event) {
-  await handleFileSelectFromUpload(
+  await handleFileSelectAction(
     event,
     selectedProfile.value,
     extractedText => { text.value = extractedText },
@@ -209,7 +211,7 @@ async function handleFileSelect(event) {
   )
 }
 async function handleFileDrop(event) {
-  await handleFileDropFromUpload(
+  await handleFileDropAction(
     event,
     selectedProfile.value,
     extractedText => { text.value = extractedText },
@@ -335,8 +337,8 @@ async function onFileClick(file) {
   try {
     await handleFileClick(selectedProfile.value, file, (content) => {
       text.value = content
-      originalFileContent.value = content
-      currentFileId.value = file.id
+      setOriginalFileContent(content)
+      setCurrentFileId(file.id)
     })
   } catch (error) {
     console.error('Error handling file click:', error)
