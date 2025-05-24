@@ -5,7 +5,7 @@ export function usePlayback(audioContext, gainNode) {
   const ttsStore = useTTSStore()
   const {
     volume,
-    setVolume: updateVolume,
+    setVolumeAndApply,
     isPlaying,
     currentSource,
     playbackProgress,
@@ -115,9 +115,8 @@ export function usePlayback(audioContext, gainNode) {
   }
 
   function handleVolumeChange(event, setVolume) {
-    const newVol = parseFloat(event.target.value) / 100
-    updateVolume(parseInt(event.target.value))
-    setVolume(newVol)
+    const newVol = parseInt(event.target.value)
+    setVolumeAndApply(newVol, setVolume)
     event.target.style.setProperty('--volume-percentage', `${volume.value}%`)
   }
 

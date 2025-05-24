@@ -52,7 +52,7 @@ export function cancelTabSwitch({ pendingTabSwitch, showTabSwitchDialog }) {
 
 // --- New keydown handler helper function ---
 
-export function handleKeydown(event, { currentSource, togglePlayback, volume, setVolume, seekRelative }) {
+export function handleKeydown(event, { currentSource, togglePlayback, volume, applyVolume, seekRelative }) {
   if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
 
   switch (event.code) {
@@ -65,14 +65,20 @@ export function handleKeydown(event, { currentSource, togglePlayback, volume, se
     case 'ArrowUp':
       event.preventDefault();
       const newVolUp = Math.min(100, volume.value + 5);
-      volume.value = newVolUp;
-      setVolume(newVolUp / 100);
+      if (applyVolume) {
+        applyVolume(newVolUp);
+      } else {
+        volume.value = newVolUp;
+      }
       break;
     case 'ArrowDown':
       event.preventDefault();
       const newVolDown = Math.max(0, volume.value - 5);
-      volume.value = newVolDown;
-      setVolume(newVolDown / 100);
+      if (applyVolume) {
+        applyVolume(newVolDown);
+      } else {
+        volume.value = newVolDown;
+      }
       break;
     case 'ArrowLeft':
       event.preventDefault();

@@ -153,12 +153,13 @@ const showTabSwitchDialog = ref(false)
 const pendingTabSwitch = ref(null)
 
 // Add this watch effect after the state declarations
-watch(text, (newValue) => {
-  // If text is edited and differs from original file content, clear the file association
-  if (currentFileId.value && newValue !== originalFileContent.value) {
-    currentFileId.value = null
-  }
-}, { deep: true })
+watch(
+  text,
+  (newValue) => {
+    fileUploadStore.clearCurrentFileIfTextEdited(newValue)
+  },
+  { deep: true }
+)
 
 // --- PROFILE MANAGEMENT FUNCTIONS ---
 async function onProfileSelect(profileId) {
@@ -169,7 +170,9 @@ async function onProfileSelect(profileId) {
         voice.value = val
         // Pipeline will be automatically updated via the watch in SpeakerSelection
       },
-      setVolume: (val) => { volume.value = val },
+      setVolume: (val) => {
+        ttsStore.setVolumeAndApply(val, setVolume)
+      },
       setFiles: (files) => { setFiles(files) }
     })
   } catch (error) {
@@ -184,7 +187,9 @@ async function onProfileCreate(data) {
       data.volume / 100,
       {
         setVoice: (val) => { voice.value = val },
-        setVolume: (val) => { volume.value = val },
+        setVolume: (val) => {
+          ttsStore.setVolumeAndApply(val, setVolume)
+        },
         setFiles: (files) => { setFiles(files) }
       }
     )
@@ -248,15 +253,6 @@ function handleSeek(event) {
   if (!isNaN(pos)) { seekToPosition(pos) }
 }
 
-watch(volume, (newVal) => {
-  setVolume(newVal / 100)
-})
-watch(unifiedBuffer, (newBuffer) => {
-  if (newBuffer) {
-    setTotalDuration(newBuffer.duration)
-    ttsStore.setUnifiedBuffer(newBuffer)
-  }
-})
 
 onMounted(() => {
   const slider = mainContent.value?.audioControls?.volumeSlider
@@ -272,13 +268,13 @@ onMounted(async () => {
 })
 
 const keydownHandler = event => {
-  globalHandleKeydown(event, { 
-    currentSource, 
-    togglePlayback, 
-    volume, 
-    setVolume, 
-    isDownloadComplete, 
-    seekRelative 
+  globalHandleKeydown(event, {
+    currentSource,
+    togglePlayback,
+    volume,
+    applyVolume: (val) => ttsStore.setVolumeAndApply(val, setVolume),
+    isDownloadComplete,
+    seekRelative
   });
 }
 onMounted(() => {

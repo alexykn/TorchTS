@@ -184,6 +184,12 @@ export const useFileUploadStore = defineStore('fileUpload', () => {
     }
   }
 
+  function clearCurrentFileIfTextEdited(newText) {
+    if (currentFileId.value && newText !== originalFileContent.value) {
+      currentFileId.value = null
+    }
+  }
+
   return {
     uploadedFiles,
     progressMessage,
@@ -204,6 +210,7 @@ export const useFileUploadStore = defineStore('fileUpload', () => {
     processFile,
     handleFileSelect,
     handleFileDrop,
-    handleFileClick
+    handleFileClick,
+    clearCurrentFileIfTextEdited
   }
 })
