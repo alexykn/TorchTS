@@ -1,54 +1,38 @@
 <template>
-    <v-navigation-drawer permanent class="file-sidebar" width="300" elevation="1">
-      <FileUpload
-        @dragover="handleDragOver"
-        @drop="handleFileDrop"
-        @dragenter="handleDragEnter"
-        @dragleave="handleDragLeave"
-        @fileSelect="handleFileSelect"
-        @fileClick="onFileClick"
-        @fileDelete="handleFileDelete"
-      />
-      <ProfileManagement
-        :selectedProfile="selectedProfile"
-        :profiles="profiles"
-        @profileSelect="onProfileSelect"
-        @profileCreate="onProfileCreate"
-        @profileDelete="onProfileDelete"
-        @deleteAllFiles="handleDeleteAllFiles"
-      />
-    </v-navigation-drawer>
-  </template>
+  <v-navigation-drawer permanent class="file-sidebar" width="300" elevation="1">
+    <FileUpload
+      @fileSelect="handleFileSelect"
+      @fileClick="onFileClick"
+    />
+    <ProfileManagement
+      :selectedProfile="selectedProfile"
+      :profiles="profiles"
+      @profileSelect="onProfileSelect"
+      @profileCreate="onProfileCreate"
+      @profileDelete="onProfileDelete"
+      @deleteAllFiles="handleDeleteAllFiles"
+    />
+  </v-navigation-drawer>
+</template>
   
   <script setup>
   import FileUpload from './FileUpload.vue'
   import ProfileManagement from './ProfileManagement.vue'
-  
-  const props = defineProps({
-    selectedProfile: { type: [Number, null], default: null },
-    profiles: { type: Array, required: true }
-  })
+  import { useProfiles } from '../composables/useProfile'
+
+  const { profiles, selectedProfile } = useProfiles()
+
   const emits = defineEmits([
-    'dragover',
-    'drop',
-    'dragenter',
-    'dragleave',
     'fileSelect',
     'fileClick',
-    'fileDelete',
     'profileSelect',
     'profileCreate',
     'profileDelete',
     'deleteAllFiles'
   ])
-  
-  function handleDragOver(event) { emits('dragover', event) }
-  function handleFileDrop(event) { emits('drop', event) }
-  function handleDragEnter(event) { emits('dragenter', event) }
-  function handleDragLeave(event) { emits('dragleave', event) }
-  function handleFileSelect(event) { emits('fileSelect', event) }
-  function onFileClick(file) { emits('fileClick', file) }
-  function handleFileDelete(fileId) { emits('fileDelete', fileId) }
+
+  function handleFileSelect(content) { emits('fileSelect', content) }
+  function onFileClick(fileInfo) { emits('fileClick', fileInfo) }
   function onProfileSelect(profileId) { emits('profileSelect', profileId) }
   function onProfileCreate(data) { emits('profileCreate', data) }
   function onProfileDelete() { emits('profileDelete') }

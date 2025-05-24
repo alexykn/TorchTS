@@ -2,12 +2,12 @@
     <v-card flat class="pa-4">
       <v-card-title class="text-h6">File Upload</v-card-title>
       <v-card-text>
-        <div 
-          class="file-upload-area" 
-          @dragover="handleDragOver"
-          @drop="handleFileDrop"
-          @dragenter="handleDragEnter"
-          @dragleave="handleDragLeave"
+        <div
+          class="file-upload-area"
+          @dragover="onDragOver"
+          @drop="onFileDrop"
+          @dragenter="onDragEnter"
+          @dragleave="onDragLeave"
         >
           <input
             type="file"
@@ -15,7 +15,7 @@
             :accept="ACCEPTED_FILE_TYPES"
             multiple
             style="display: none"
-            @change="handleFileSelect"
+            @change="onFileSelect"
             aria-label="Choose files to upload"
           >
           <div 
@@ -43,7 +43,7 @@
             variant="outlined" 
             class="file-info mb-2"
             :class="{ 'cursor-pointer': true }"
-            @click="onFileClick(file)"
+            @click="onFileClickLocal(file)"
           >
             <v-card-text>
               <div class="d-flex align-center justify-space-between">
@@ -55,7 +55,7 @@
                   icon="mdi-close"
                   variant="text"
                   size="small"
-                  @click.stop="handleFileDelete(file.id)"
+                  @click.stop="onFileDelete(file.id)"
                 ></v-btn>
               </div>
             </v-card-text>
@@ -67,43 +67,59 @@
   
   <script setup>
   import { ref } from 'vue'
-  import { storeToRefs } from 'pinia'
   import { ACCEPTED_FILE_TYPES, SUPPORTED_FORMATS } from '../constants/files'
-  import { useFileUploadStore } from '../stores/fileUploadStore'
+  import { useFileUpload } from '../composables/useFileUpload'
+  import { useProfiles } from '../composables/useProfile'
 
-  const fileUploadStore = useFileUploadStore()
-  const { uploadedFiles, isDragging } = storeToRefs(fileUploadStore)
-  const emits = defineEmits([
-    'dragover',
-    'drop',
-    'dragenter',
-    'dragleave',
-    'fileSelect',
-    'fileClick',
-    'fileDelete'
-  ])
-  
   const fileInput = ref(null)
-  
-  function handleDragOver(event) {
-    emits('dragover', event)
+
+  const {
+    uploadedFiles,
+    isDragging,
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleFileSelect,
+    handleFileDrop,
+    handleFileClick,
+    deleteFile
+  } = useFileUpload()
+  const { selectedProfile } = useProfiles()
+
+  const emits = defineEmits(['fileSelect', 'fileClick'])
+
+  function onDragOver(event) {
+    handleDragOver(event)
   }
-  function handleFileDrop(event) {
-    emits('drop', event)
+  function onDragEnter(event) {
+    handleDragEnter(event)
   }
-  function handleDragEnter(event) {
-    emits('dragenter', event)
+  function onDragLeave(event) {
+    handleDragLeave(event)
   }
-  function handleDragLeave(event) {
-    emits('dragleave', event)
+  async function onFileDrop(event) {
+    await handleFileDrop(
+      event,
+      selectedProfile.value,
+      (text) => emits('fileSelect', text),
+      () => { if (fileInput.value) fileInput.value.value = '' }
+    )
   }
-  function handleFileSelect(event) {
-    emits('fileSelect', event)
+  async function onFileSelect(event) {
+    await handleFileSelect(
+      event,
+      selectedProfile.value,
+      (text) => emits('fileSelect', text),
+      () => { if (fileInput.value) fileInput.value.value = '' }
+    )
   }
-  function onFileClick(file) {
-    emits('fileClick', file)
+  async function onFileClickLocal(file) {
+    if (!selectedProfile.value) return
+    const content = await handleFileClick(selectedProfile.value, file, (c) => c)
+    if (content) emits('fileClick', { file, content })
   }
-  function handleFileDelete(fileId) {
-    emits('fileDelete', fileId)
+  async function onFileDelete(fileId) {
+    if (!selectedProfile.value) return
+    await deleteFile(selectedProfile.value, fileId)
   }
   </script>
