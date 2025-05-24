@@ -57,6 +57,21 @@ export const useTTSStore = defineStore('tts', () => {
     downloadProgress.value = val
   }
 
+  function setVolumeAndApply(val, applyFn) {
+    volume.value = val
+    if (typeof applyFn === 'function') {
+      applyFn(val / 100)
+    }
+  }
+
+  function updateUnifiedBuffer(buffer, setDuration) {
+    setUnifiedBuffer(buffer)
+    if (typeof setDuration === 'function') {
+      const duration = buffer ? buffer.duration : 0
+      setDuration(duration)
+    }
+  }
+
   return {
     volume,
     isGenerating,
@@ -76,6 +91,8 @@ export const useTTSStore = defineStore('tts', () => {
     setPlaybackProgress,
     setCurrentTime,
     setIsDownloadComplete,
-    setDownloadProgress
+    setDownloadProgress,
+    setVolumeAndApply,
+    updateUnifiedBuffer
   }
 })

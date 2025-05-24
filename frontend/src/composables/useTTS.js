@@ -21,7 +21,7 @@ export function useTTS() {
     currentTime,
     isDownloadComplete,
     downloadProgress,
-    setUnifiedBuffer,
+    updateUnifiedBuffer,
     setIsPlaying,
     setCurrentSource,
     setPlaybackProgress,
@@ -84,7 +84,7 @@ export function useTTS() {
       setIsDownloadComplete(false)
       setDownloadProgress(0)
       audioQueue.length = 0
-      setUnifiedBuffer(null)
+      updateUnifiedBuffer(null, setTotalDuration)
       // make sure we start in streaming mode for new generations:
       streamingMode = true
 
@@ -114,8 +114,7 @@ export function useTTS() {
       }
 
       if (totalChunks === 1) {
-        setUnifiedBuffer(firstChunk.buffer)
-        setTotalDuration(unifiedBuffer.value.duration)
+        updateUnifiedBuffer(firstChunk.buffer, setTotalDuration)
         setIsDownloadComplete(true)
       } else {
         fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
@@ -240,7 +239,7 @@ export function useTTS() {
       setDownloadProgress(0)
       audioQueue.length = 0
       chunkCache.clear()
-      setUnifiedBuffer(null)
+      updateUnifiedBuffer(null, setTotalDuration)
       // For multi-speaker we immediately get a full WAV; so switch to unifiedBuffer mode:
       streamingMode = false
 
@@ -265,9 +264,10 @@ export function useTTS() {
 
       const sessionId = multiResponse.sessionId
       const arrayBuffer = multiResponse.arrayBuffer
-      setUnifiedBuffer(await audioContext.value.decodeAudioData(arrayBuffer))
-
-      setTotalDuration(unifiedBuffer.value.duration)
+      updateUnifiedBuffer(
+        await audioContext.value.decodeAudioData(arrayBuffer),
+        setTotalDuration
+      )
       setIsDownloadComplete(true)
 
       currentSource.value = audioContext.value.createBufferSource()
@@ -347,7 +347,7 @@ export function useTTS() {
     resetChunks()
     audioQueue.length = 0
     currentChunkIndex.value = 0
-    setUnifiedBuffer(null)
+    updateUnifiedBuffer(null, setTotalDuration)
     setDownloadProgress(0)
     setPlaybackProgress(0)
     setIsDownloadComplete(false)
