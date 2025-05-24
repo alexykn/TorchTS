@@ -63,19 +63,19 @@ class MultiTTSRequest(BaseModel):
 
 @app.post("/profiles")
 async def create_profile(profile: ProfileCreate):
-    return create_profile_service(profile)
+    return await create_profile_service(profile)
 
 @app.get("/profiles")
 async def list_profiles():
-    return list_profiles_service()
+    return await list_profiles_service()
 
 @app.delete("/profiles/{profile_id}")
 async def delete_profile(profile_id: int):
-    return delete_profile_service(profile_id)
+    return await delete_profile_service(profile_id)
 
 @app.get("/profiles/{profile_id}/files")
 async def list_profile_files(profile_id: int):
-    return list_profile_files_service(profile_id)
+    return await list_profile_files_service(profile_id)
 
 @app.post("/profiles/{profile_id}/files")
 async def upload_profile_file(profile_id: int, file: UploadFile = File(...)):
@@ -83,19 +83,19 @@ async def upload_profile_file(profile_id: int, file: UploadFile = File(...)):
 
 @app.get("/profiles/{profile_id}/files/{file_id}")
 async def get_profile_file(profile_id: int, file_id: int):
-    return get_profile_file_service(profile_id, file_id)
+    return await get_profile_file_service(profile_id, file_id)
 
 @app.delete("/profiles/{profile_id}/files/{file_id}")
 async def delete_profile_file(profile_id: int, file_id: int):
-    return delete_profile_file_service(profile_id, file_id)
+    return await delete_profile_file_service(profile_id, file_id)
 
 @app.delete("/profiles/{profile_id}/files")
 async def delete_all_profile_files(profile_id: int):
-    return delete_all_profile_files_service(profile_id)
+    return await delete_all_profile_files_service(profile_id)
 
 @app.get("/profiles/{profile_id}/audio")
 async def list_profile_audio(profile_id: int):
-    return list_profile_audio_service(profile_id)
+    return await list_profile_audio_service(profile_id)
 
 @app.post("/upload-file")
 async def upload_file(file: UploadFile = File(...)):
