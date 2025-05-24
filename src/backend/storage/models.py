@@ -90,7 +90,7 @@ engine = create_engine('sqlite:///data/torchts.db')
 # Attempt to create asynchronous engine if supported
 if ASYNC_AVAILABLE:
     try:
-        async_engine: AsyncEngine = create_async_engine(
+        async_engine = create_async_engine(
             'sqlite+aiosqlite:///data/torchts.db'
         )
         AsyncSessionLocal = sessionmaker(
