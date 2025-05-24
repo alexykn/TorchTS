@@ -349,18 +349,18 @@ export function useTTS() {
     await downloadAudioHelper(unifiedBuffer, isDownloadComplete, progressMessage)
   }
 
+  const handleChunkProgress = (event) => {
+    progressMessage.value = event.detail.message
+  }
+
   onMounted(() => {
-    window.addEventListener('chunk-progress', (event) => {
-      progressMessage.value = event.detail.message
-    })
+    window.addEventListener('chunk-progress', handleChunkProgress)
   })
 
   onUnmounted(() => {
     stopProgressUpdates()
     reset()
-    window.removeEventListener('chunk-progress', (event) => {
-      progressMessage.value = event.detail.message
-    })
+    window.removeEventListener('chunk-progress', handleChunkProgress)
   })
 
   return {
