@@ -71,7 +71,7 @@ export function useTTS() {
       currentAbortController = new AbortController()
       
       initAudio()
-      if (audioContext.value.state === 'suspended') {
+      if (audioContext.value && audioContext.value.state === 'suspended') {
         await audioContext.value.resume()
       }
 
@@ -226,7 +226,7 @@ export function useTTS() {
 
     try {
       initAudio()
-      if (audioContext.value.state === 'suspended') {
+      if (audioContext.value && audioContext.value.state === 'suspended') {
         await audioContext.value.resume()
       }
 
