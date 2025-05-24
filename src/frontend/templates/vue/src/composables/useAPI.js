@@ -2,12 +2,19 @@ import { API_ENDPOINTS } from '../constants/api'
 
 export function useAPI() {
   async function generateSpeechChunk({ text, voice, chunkId, speed = 1.0, signal }) {
-    const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH, {
-      method: 'POST',
-      signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice, chunk_id: chunkId, speed })
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.GENERATE_SPEECH, {
+        method: 'POST',
+        signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, chunk_id: chunkId, speed })
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while generating speech chunk: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.error || `Server error: ${response.status}`)
@@ -24,12 +31,19 @@ export function useAPI() {
   }
 
   async function generateMultiSpeech({ text, speakers, speed = 1.0, signal }) {
-    const response = await fetch(API_ENDPOINTS.GENERATE_SPEECH_MULTI, {
-      method: 'POST',
-      signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, speakers, speed })
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.GENERATE_SPEECH_MULTI, {
+        method: 'POST',
+        signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, speakers, speed })
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while generating multi speech: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.error || `Server error: ${response.status}`)
@@ -40,11 +54,18 @@ export function useAPI() {
   }
 
   async function stopGeneration(sessionId) {
-    const response = await fetch(API_ENDPOINTS.STOP_GENERATION, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId })
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.STOP_GENERATION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while stopping generation: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.error)
@@ -53,7 +74,14 @@ export function useAPI() {
   }
 
   async function getProfiles() {
-    const response = await fetch(API_ENDPOINTS.PROFILES)
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILES)
+    } catch (error) {
+      throw new Error(
+        `Network error while fetching profiles: ${error.message}`
+      )
+    }
     if (!response.ok) {
       throw new Error('Failed to load profiles')
     }
@@ -61,11 +89,18 @@ export function useAPI() {
   }
 
   async function createProfile({ name, voice_preset, volume }) {
-    const response = await fetch(API_ENDPOINTS.PROFILES, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, voice_preset, volume })
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, voice_preset, volume })
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while creating profile: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.detail || 'Failed to create profile')
@@ -74,7 +109,14 @@ export function useAPI() {
   }
 
   async function getProfileFiles(profileId) {
-    const response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId))
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId))
+    } catch (error) {
+      throw new Error(
+        `Network error while fetching profile files: ${error.message}`
+      )
+    }
     if (!response.ok) {
       throw new Error('Failed to load profile files')
     }
@@ -82,7 +124,14 @@ export function useAPI() {
   }
 
   async function getProfileAudio(profileId) {
-    const response = await fetch(API_ENDPOINTS.PROFILE_AUDIO(profileId))
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_AUDIO(profileId))
+    } catch (error) {
+      throw new Error(
+        `Network error while fetching profile audio: ${error.message}`
+      )
+    }
     if (!response.ok) {
       throw new Error('Failed to load profile audio')
     }
@@ -90,9 +139,16 @@ export function useAPI() {
   }
 
   async function deleteProfile(profileId) {
-    const response = await fetch(`${API_ENDPOINTS.PROFILES}/${profileId}`, {
-      method: 'DELETE'
-    })
+    let response
+    try {
+      response = await fetch(`${API_ENDPOINTS.PROFILES}/${profileId}`, {
+        method: 'DELETE'
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while deleting profile: ${error.message}`
+      )
+    }
     if (!response.ok) {
       throw new Error('Failed to delete profile')
     }
@@ -102,10 +158,15 @@ export function useAPI() {
   async function uploadFile(file, profileId) {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId), {
-      method: 'POST',
-      body: formData
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId), {
+        method: 'POST',
+        body: formData
+      })
+    } catch (error) {
+      throw new Error(`Network error while uploading file: ${error.message}`)
+    }
     if (!response.ok) {
       let errorData
       try {
@@ -121,10 +182,17 @@ export function useAPI() {
   }
 
   async function deleteFile(profileId, fileId) {
-    const response = await fetch(API_ENDPOINTS.PROFILE_FILE(profileId, fileId), {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_FILE(profileId, fileId), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while deleting file: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(
@@ -135,10 +203,17 @@ export function useAPI() {
   }
 
   async function deleteAllFiles(profileId) {
-    const response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId), {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
-    })
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_FILES(profileId), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    } catch (error) {
+      throw new Error(
+        `Network error while deleting all files: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(
@@ -149,7 +224,14 @@ export function useAPI() {
   }
 
   async function getFileContent(profileId, fileId) {
-    const response = await fetch(API_ENDPOINTS.PROFILE_FILE(profileId, fileId))
+    let response
+    try {
+      response = await fetch(API_ENDPOINTS.PROFILE_FILE(profileId, fileId))
+    } catch (error) {
+      throw new Error(
+        `Network error while fetching file content: ${error.message}`
+      )
+    }
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(
