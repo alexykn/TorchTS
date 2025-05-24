@@ -1,15 +1,8 @@
 <template>
   <v-app :theme="isDark ? 'dark' : 'light'">
     <Sidebar
-      :selectedProfile="selectedProfile"
-      :profiles="profiles"
-      @dragover="handleDragOver"
-      @drop="handleFileDrop"
-      @dragenter="handleDragEnter"
-      @dragleave="handleDragLeave"
       @fileSelect="handleFileSelect"
       @fileClick="onFileClick"
-      @fileDelete="handleFileDelete"
       @profileSelect="onProfileSelect"
       @profileCreate="onProfileCreate"
       @profileDelete="onProfileDelete"
@@ -19,19 +12,8 @@
       ref="mainContent"
       v-model:text="text"
       v-model:voice="voice"
-      v-model:volume="volume"
       v-model:multiSpeakerVoices="multiSpeakerVoices"
       :currentMode="currentMode"
-      :voice="voice"
-      :volume="volume"
-      :isPlaying="isPlaying"
-      :isGenerating="isGenerating"
-      :currentSource="currentSource"
-      :playbackProgress="playbackProgress"
-      :isDownloadComplete="isDownloadComplete"
-      :currentTime="currentTime"
-      :audioDuration="audioDuration"
-      :progressMessage="progressMessage"
       :isDark="isDark"
       @handleVolumeChange="handleVolumeChange"
       @generateSpeech="handleGenerateSpeech"
@@ -124,14 +106,8 @@ const {
   originalFileContent,
 } = storeToRefs(fileUploadStore)
 const {
-  deleteFile,
   deleteAllFiles,
   setFiles,
-  handleDragEnter,
-  handleDragLeave,
-  handleDragOver,
-  handleFileSelect: handleFileSelectAction,
-  handleFileDrop: handleFileDropAction,
   handleFileClick,
   setCurrentFileId,
   setOriginalFileContent,
@@ -207,21 +183,8 @@ async function onProfileDelete() {
 }
 
 // File Upload handlers
-async function handleFileSelect(event) {
-  await handleFileSelectAction(
-    event,
-    selectedProfile.value,
-    extractedText => { text.value = extractedText },
-    () => { if (fileInput.value) { fileInput.value.value = '' } }
-  )
-}
-async function handleFileDrop(event) {
-  await handleFileDropAction(
-    event,
-    selectedProfile.value,
-    extractedText => { text.value = extractedText },
-    () => { if (fileInput.value) { fileInput.value.value = '' } }
-  )
+function handleFileSelect(content) {
+  text.value = content
 }
 function handleVolumeChange(event) {
   handleVolumeChangeFromPlayback(event, setVolume)
@@ -315,10 +278,6 @@ function onCancelTabSwitch() {
     pendingTabSwitch,
     showTabSwitchDialog
   });
-}
-function handleFileDelete(fileId) {
-  if (!selectedProfile.value) return
-  deleteFile(selectedProfile.value, fileId)
 }
 async function handleDeleteAllFiles() {
   if (!selectedProfile.value) return

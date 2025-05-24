@@ -1,4 +1,5 @@
 import { ref, onUnmounted, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useTTSStore } from '../stores/ttsStore'
 import { API_ENDPOINTS } from '../constants/api'
 import { useAudioContext } from './useAudioContext'
@@ -20,7 +21,9 @@ export function useTTS() {
     playbackProgress,
     currentTime,
     isDownloadComplete,
-    downloadProgress,
+    downloadProgress
+  } = storeToRefs(ttsStore)
+  const {
     updateUnifiedBuffer,
     setIsPlaying,
     setCurrentSource,

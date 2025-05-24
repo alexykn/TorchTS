@@ -31,7 +31,7 @@
             <AudioControls
               ref="audioControls"
               :volume="localVolume"
-              @update:volume="val => localVolume = val"
+              @update:volume="onVolumeChange"
             />
   
             <PlaybackControls
@@ -99,7 +99,9 @@
   
 <script setup>
 import { computed, ref } from 'vue'
-import { formatTime } from '../utils/generalHelpers'
+import { storeToRefs } from 'pinia'
+import { useTTSStore } from '../stores/ttsStore'
+import { useFileUploadStore } from '../stores/fileUploadStore'
 import { VOICE_OPTIONS } from '../constants/voices'
   
 // Import new components
@@ -115,23 +117,13 @@ const props = defineProps({
   currentMode: { type: String, required: true },
   text: { type: String, required: true },
   voice: { type: String, required: true },
-  volume: { type: Number, required: true },
   multiSpeakerVoices: { type: Object, required: true },
-  isPlaying: { type: Boolean, required: true },
-  isGenerating: { type: Boolean, required: true },
-  currentSource: { type: [Object, null], default: null },
-  playbackProgress: { type: Number, required: true },
-  isDownloadComplete: { type: Boolean, required: true },
-  currentTime: { type: Number, required: true },
-  audioDuration: { type: Number, required: true },
-  progressMessage: { type: String, required: false },
   isDark: { type: Boolean, required: true }
 })
   
 const emits = defineEmits([
   'update:text',
   'update:voice',
-  'update:volume',
   'update:multiSpeakerVoices',
   'handleVolumeChange',
   'generateSpeech',
@@ -143,6 +135,23 @@ const emits = defineEmits([
   'tabSwitch',
   'toggleTheme'
 ])
+
+const ttsStore = useTTSStore()
+const fileUploadStore = useFileUploadStore()
+const {
+  isPlaying,
+  isGenerating,
+  currentSource,
+  playbackProgress,
+  isDownloadComplete,
+  currentTime,
+  audioDuration,
+  progressMessage: ttsProgress,
+  volume
+} = storeToRefs(ttsStore)
+const { progressMessage: fileProgress } = storeToRefs(fileUploadStore)
+
+const progressMessage = computed(() => ttsProgress.value || fileProgress.value)
   
 // Wrap "text" so that v-model works without writing directly to the prop.
 const localText = computed({
@@ -150,14 +159,15 @@ const localText = computed({
   set: newValue => emits('update:text', newValue)
 })
   
-// Similarly, wrap "voice" and "volume"
+// Similarly, wrap "voice"
 const localVoice = computed({
   get: () => props.voice,
   set: newValue => emits('update:voice', newValue)
 })
+
 const localVolume = computed({
-  get: () => props.volume,
-  set: newValue => emits('update:volume', newValue)
+  get: () => volume.value,
+  set: newValue => { volume.value = newValue }
 })
   
 // For multiSpeakerVoices, we update via an event.
@@ -168,9 +178,10 @@ const localMultiSpeakerVoices = computed({
 
 const focusedElement = ref(null)
 const audioControls = ref(null)
-  
-function handleVolumeChange(event) {
-  emits('handleVolumeChange', event)
+
+function onVolumeChange(val) {
+  localVolume.value = val
+  emits('handleVolumeChange', { target: { value: val } })
 }
 function handleGenerateSpeech() { 
   if (!localVoice.value) {
