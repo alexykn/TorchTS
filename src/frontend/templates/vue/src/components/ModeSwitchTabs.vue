@@ -34,4 +34,4 @@
   function switchMode(mode) {
     emit('tabSwitch', mode)
   }
-  </script>s
+  </script>
