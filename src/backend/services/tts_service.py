@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from processing.text_processor import chunk_text
 from processing.audio_generator import normalize_audio
+import asyncio
 from main import pipelines  # Use the pipelines already set up in main.py
 
 # Global variable to track active generation sessions
@@ -164,14 +165,38 @@ def stop_generation_service(session_id: str):
     else:
         return {"message": "No active generation found for this session", "session_id": session_id}
 
-def list_profile_audio_service(profile_id: int):
+async def list_profile_audio_service(profile_id: int):
+    from storage.models import ASYNC_DB, AsyncSessionLocal, engine, AudioOutput
+    from sqlalchemy import select
     from sqlalchemy.orm import Session
-    from storage.models import engine, AudioOutput
-    with Session(engine) as session:
-        outputs = session.query(AudioOutput).filter_by(profile_id=profile_id).all()
-        return [{
-            "id": a.id,
-            "voice": a.voice,
-            "created_at": a.created_at,
-            "file_path": a.file_path
-        } for a in outputs] 
+
+    if ASYNC_DB and AsyncSessionLocal:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(AudioOutput).where(AudioOutput.profile_id == profile_id)
+            )
+            outputs = result.scalars().all()
+            return [
+                {
+                    "id": a.id,
+                    "voice": a.voice,
+                    "created_at": a.created_at,
+                    "file_path": a.file_path,
+                }
+                for a in outputs
+            ]
+    else:
+        def _sync_op():
+            with Session(engine) as session:
+                outputs = session.query(AudioOutput).filter_by(profile_id=profile_id).all()
+                return [
+                    {
+                        "id": a.id,
+                        "voice": a.voice,
+                        "created_at": a.created_at,
+                        "file_path": a.file_path,
+                    }
+                    for a in outputs
+                ]
+
+        return await asyncio.to_thread(_sync_op)
