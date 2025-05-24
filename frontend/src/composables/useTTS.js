@@ -1,4 +1,4 @@
-import { ref, onUnmounted, onMounted } from 'vue'
+import { ref, onUnmounted, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTTSStore } from '../stores/ttsStore'
 import { API_ENDPOINTS } from '../constants/api'
@@ -49,10 +49,21 @@ export function useTTS() {
     setTotalDuration,
     seekToPosition,
     seekRelative,
-    togglePlayback
+    togglePlayback,
+    switchToHtmlAudio,
+    isUsingHtmlAudio,
+    htmlAudio
   } = usePlayback(audioContext, gainNode)
 
   console.log('currentSource in useTTS setup:', currentSource);
+
+  // Watch for generation completion to switch to HTML5 Audio
+  watch([isDownloadComplete, unifiedBuffer], ([downloadComplete, buffer]) => {
+    if (downloadComplete && buffer && !isUsingHtmlAudio.value) {
+      console.log('Generation complete, switching to HTML5 Audio for replay capability')
+      switchToHtmlAudio(buffer)
+    }
+  })
 
   // Audio chunks management
   const { chunkCache, currentChunkIndex, fetchAudioChunk, fetchNextChunks, resetChunks } = useAudioChunks(audioContext)
@@ -100,6 +111,16 @@ export function useTTS() {
       updateUnifiedBuffer(null, setTotalDuration)
       // make sure we start in streaming mode for new generations:
       streamingMode = true
+      
+      // Reset to Web Audio mode for new generation
+      if (isUsingHtmlAudio.value) {
+        isUsingHtmlAudio.value = false
+        if (htmlAudio.value) {
+          htmlAudio.value.pause()
+          htmlAudio.value.src = ''
+          htmlAudio.value = null
+        }
+      }
 
       console.log('About to check currentSource.value. currentSource is:', currentSource);
       console.log('typeof currentSource:', typeof currentSource);
@@ -266,6 +287,16 @@ export function useTTS() {
       updateUnifiedBuffer(null, setTotalDuration)
       // For multi-speaker we immediately get a full WAV; so switch to unifiedBuffer mode:
       streamingMode = false
+      
+      // Reset to Web Audio mode for new generation
+      if (isUsingHtmlAudio.value) {
+        isUsingHtmlAudio.value = false
+        if (htmlAudio.value) {
+          htmlAudio.value.pause()
+          htmlAudio.value.src = ''
+          htmlAudio.value = null
+        }
+      }
 
       if (currentSource.value) {
         currentSource.value.onended = null
@@ -383,6 +414,16 @@ export function useTTS() {
     setIsDownloadComplete(false)
     setCurrentTime(0)
     stopProgressUpdates()
+    
+    // Reset HTML5 Audio mode
+    if (isUsingHtmlAudio.value) {
+      isUsingHtmlAudio.value = false
+      if (htmlAudio.value) {
+        htmlAudio.value.pause()
+        htmlAudio.value.src = ''
+        htmlAudio.value = null
+      }
+    }
   }
 
   async function downloadAudio() {
