@@ -1,5 +1,13 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float, MetaData
-from sqlalchemy.orm import declarative_base, relationship, Session
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float, MetaData, select
+from sqlalchemy.orm import declarative_base, relationship, Session, sessionmaker
+try:
+    from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+    ASYNC_AVAILABLE = True
+except Exception:  # pragma: no cover - fallback if asyncio support missing
+    AsyncEngine = None
+    AsyncSession = None
+    create_async_engine = None
+    ASYNC_AVAILABLE = False
 from datetime import datetime, timezone
 import os
 
@@ -67,8 +75,29 @@ class AudioOutput(Base):
     def __repr__(self):
         return f"<AudioOutput(id={self.id}, file_path={self.file_path})>"
 
-# Create engine
+# Create synchronous engine
 engine = create_engine('sqlite:///data/torchts.db')
+
+# Attempt to create asynchronous engine if supported
+if ASYNC_AVAILABLE:
+    try:
+        async_engine: AsyncEngine = create_async_engine(
+            'sqlite+aiosqlite:///data/torchts.db'
+        )
+        AsyncSessionLocal = sessionmaker(
+            bind=async_engine,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
+        ASYNC_DB = True
+    except Exception:
+        async_engine = None
+        AsyncSessionLocal = None
+        ASYNC_DB = False
+else:
+    async_engine = None
+    AsyncSessionLocal = None
+    ASYNC_DB = False
 
 # Create all tables
 Base.metadata.create_all(engine)
