@@ -1,5 +1,46 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Float, MetaData
-from sqlalchemy.orm import declarative_base, relationship, Session
+"""Database models and engine helpers.
+
+This module attempts to import SQLAlchemy when available. If SQLAlchemy is not
+installed (for example in minimal environments), dummy placeholders are
+provided so the rest of the code can still be imported. Service functions will
+raise runtime errors if they are used without SQLAlchemy installed.
+"""
+
+try:  # pragma: no cover - optional dependency
+    from sqlalchemy import (
+        create_engine,
+        Column,
+        Integer,
+        String,
+        ForeignKey,
+        DateTime,
+        Float,
+        MetaData,
+        select,
+    )
+    from sqlalchemy.orm import declarative_base, relationship, Session, sessionmaker
+    SA_AVAILABLE = True
+    try:
+        from sqlalchemy.ext.asyncio import (
+            AsyncEngine,
+            AsyncSession,
+            create_async_engine,
+        )
+        ASYNC_AVAILABLE = True
+    except Exception:  # pragma: no cover - async extras missing
+        AsyncEngine = None
+        AsyncSession = None
+        create_async_engine = None
+        ASYNC_AVAILABLE = False
+except Exception:  # pragma: no cover - SQLAlchemy missing completely
+    SA_AVAILABLE = False
+    ASYNC_AVAILABLE = False
+    AsyncEngine = None
+    AsyncSession = None
+    create_async_engine = None
+    create_engine = None
+    Column = Integer = String = ForeignKey = DateTime = Float = MetaData = select = None
+    declarative_base = relationship = Session = sessionmaker = None
 from datetime import datetime, timezone
 import os
 
@@ -67,20 +108,47 @@ class AudioOutput(Base):
     def __repr__(self):
         return f"<AudioOutput(id={self.id}, file_path={self.file_path})>"
 
-# Create engine
-engine = create_engine('sqlite:///data/torchts.db')
+if SA_AVAILABLE:
+    # Create synchronous engine
+    engine = create_engine('sqlite:///data/torchts.db')
+else:  # pragma: no cover - SQLAlchemy not installed
+    engine = None
+
+# Attempt to create asynchronous engine if supported
+if ASYNC_AVAILABLE:
+    try:
+        async_engine: AsyncEngine = create_async_engine(
+            'sqlite+aiosqlite:///data/torchts.db'
+        )
+        AsyncSessionLocal = sessionmaker(
+            bind=async_engine,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
+        ASYNC_DB = True
+    except Exception:
+        async_engine = None
+        AsyncSessionLocal = None
+        ASYNC_DB = False
+else:
+    async_engine = None
+    AsyncSessionLocal = None
+    ASYNC_DB = False
 
 # Create all tables
-Base.metadata.create_all(engine)
+if engine is not None:
+    Base.metadata.create_all(engine)
 
 # Create default profile if none exists
 def create_default_profile():
+    if engine is None:
+        return
     with Session(engine) as session:
         if session.query(Profile).count() == 0:
             default_profile = Profile(
                 name="Default Profile",
                 voice_preset="am_michael",  # Default voice
-                volume=0.8  # Match frontend volume setting
+                volume=0.8,  # Match frontend volume setting
             )
             session.add(default_profile)
             session.commit()
