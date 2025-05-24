@@ -8,21 +8,31 @@ from processing.text_processor import chunk_text
 from processing.audio_generator import normalize_audio
 import asyncio
 from main import pipelines  # Use the pipelines already set up in main.py
+from threading import Lock
 
 # Global variable to track active generation sessions
+# Access to this set must be synchronized because FastAPI can handle
+# multiple requests concurrently using threads. A simple lock is
+# sufficient since operations on the set are short lived.
 active_generations = set()
+# Lock protecting modifications to ``active_generations``
+active_generations_lock = Lock()
 
 def generate_single_tts(request):
     try:
         session_data = f"{request.voice}_{request.text[:32]}".encode('utf-8')
         session_id = hashlib.md5(session_data).hexdigest()
         
-        if session_id in active_generations:
-            if request.chunk_id == 0:
-                active_generations.remove(session_id)
+        # Register this session as active. Operations on ``active_generations``
+        # are protected by ``active_generations_lock`` to avoid race conditions
+        # when multiple requests modify the set concurrently.
+        with active_generations_lock:
+            if session_id in active_generations:
+                if request.chunk_id == 0:
+                    active_generations.remove(session_id)
+                    active_generations.add(session_id)
+            else:
                 active_generations.add(session_id)
-        else:
-            active_generations.add(session_id)
         
         if not request.voice or len(request.voice) < 2:
             raise HTTPException(status_code=400, detail="Voice parameter must be provided in format: [a/b]_[name]")
@@ -66,19 +76,23 @@ def generate_single_tts(request):
         
         return StreamingResponse(buffer, media_type="audio/wav", headers=headers)
     except HTTPException as he:
-        active_generations.discard(session_id)
+        with active_generations_lock:
+            active_generations.discard(session_id)
         raise he
     except Exception as e:
-        active_generations.discard(session_id)
+        with active_generations_lock:
+            active_generations.discard(session_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 def generate_multi_tts(request):
     session_data = ("multi_" + request.text[:32]).encode('utf-8')
     session_id = hashlib.md5(session_data).hexdigest()
     
-    if session_id in active_generations:
-        active_generations.remove(session_id)
-    active_generations.add(session_id)
+    # Ensure only one thread modifies the active session tracker at a time.
+    with active_generations_lock:
+        if session_id in active_generations:
+            active_generations.remove(session_id)
+        active_generations.add(session_id)
     
     def parse_segments(text: str):
         segments = []
@@ -140,7 +154,8 @@ def generate_multi_tts(request):
         sf.write(buffer, audio_int16, 24000, format='WAV', subtype='PCM_16')
         buffer.seek(0)
         
-        active_generations.discard(session_id)
+        with active_generations_lock:
+            active_generations.discard(session_id)
         
         headers = {
             "Content-Type": "audio/wav",
@@ -152,18 +167,23 @@ def generate_multi_tts(request):
         }
         return StreamingResponse(buffer, media_type="audio/wav", headers=headers)
     except HTTPException as he:
-        active_generations.discard(session_id)
+        with active_generations_lock:
+            active_generations.discard(session_id)
         raise he
     except Exception as e:
-        active_generations.discard(session_id)
+        with active_generations_lock:
+            active_generations.discard(session_id)
         raise HTTPException(status_code=500, detail=f"Multi-speaker audio generation failed: {str(e)}")
 
 def stop_generation_service(session_id: str):
-    if session_id in active_generations:
-        active_generations.discard(session_id)
-        return {"message": "Generation stopped successfully", "session_id": session_id}
-    else:
-        return {"message": "No active generation found for this session", "session_id": session_id}
+    # Modification of ``active_generations`` can occur concurrently with
+    # generation requests, so protect it with the lock here as well.
+    with active_generations_lock:
+        if session_id in active_generations:
+            active_generations.discard(session_id)
+            return {"message": "Generation stopped successfully", "session_id": session_id}
+        else:
+            return {"message": "No active generation found for this session", "session_id": session_id}
 
 async def list_profile_audio_service(profile_id: int):
     from storage.models import (

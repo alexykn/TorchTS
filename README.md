@@ -87,6 +87,10 @@ brew install espeak-ng
    ```bash
    python src/backend/main.py
    ```
+4. (Optional) Override the default SQLite path by setting `TORCHTS_DB_URL`:
+   ```bash
+   export TORCHTS_DB_URL=sqlite:////absolute/path/to/torchts.db
+   ```
 
 #### Frontend Setup (Vue.js)
 

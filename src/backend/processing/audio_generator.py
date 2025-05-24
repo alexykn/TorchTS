@@ -67,12 +67,11 @@ def crossfade_numba(audio1, audio2, fade_duration=0.1, sample_rate=24000):
     part3 = audio2_copy[fade_length:]
     result = numpy.concatenate((part1, overlapped, part3))
     
-    # Manually clip the values to the range [-1.0, 1.0].
-    for i in range(result.shape[0]):
-        if result[i] < -1.0:
-            result[i] = -1.0
-        elif result[i] > 1.0:
-            result[i] = 1.0
+    # Clip the values to the range [-1.0, 1.0] using NumPy's optimized
+    # implementation. The "out" argument ensures in-place modification so
+    # we avoid allocating a new array, which keeps the function compatible
+    # with Numba's nopython mode.
+    numpy.clip(result, -1.0, 1.0, out=result)
     return result
 
 def crossfade(audio1: numpy.ndarray, audio2: numpy.ndarray, 
