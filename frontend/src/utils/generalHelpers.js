@@ -4,7 +4,12 @@ export async function resetAll({ text, fileInput, currentSource, resetTTS, stopG
 
   if (currentSource.value) {
     currentSource.value.onended = null; // Remove event listener
-    currentSource.value.stop();
+    try {
+      currentSource.value.stop();
+    } catch (e) {
+      // Ignore error if source was never started
+      console.warn('Could not stop audio source (may not have been started):', e.message);
+    }
     currentSource.value.disconnect();
   }
   

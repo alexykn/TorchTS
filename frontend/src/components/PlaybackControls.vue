@@ -10,7 +10,7 @@
           <span>Pause</span>
         </button>
         <button 
-          v-else-if="currentSource" 
+          v-else-if="currentSource || isDownloadComplete" 
           class="macos-button primary" 
           @click="onTogglePlayback"
         >
@@ -49,7 +49,7 @@
           Pause
         </button>
         <button 
-          v-else-if="currentSource" 
+          v-else-if="currentSource || isDownloadComplete" 
           class="macos-button primary" 
           @click="onTogglePlayback"
         >

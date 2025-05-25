@@ -95,6 +95,7 @@ const {
   seekRelative,
   unifiedBuffer,
   setTotalDuration,
+  setVolume: setSyncedVolume,
 } = useTTS()
 const fileUploadStore = useFileUploadStore()
 const {
@@ -186,7 +187,7 @@ function handleFileSelect(content) {
   text.value = content
 }
 function handleVolumeChange(event) {
-  handleVolumeChangeFromPlayback(event, setVolume)
+  handleVolumeChangeFromPlayback(event, setSyncedVolume)
 }
 async function handleGenerateSpeech({ text: textToGenerate, voice: selectedVoice }) {
   if (!selectedVoice) {

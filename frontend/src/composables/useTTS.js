@@ -18,7 +18,7 @@ export function useTTS() {
     audioDuration,
     isDownloadComplete,
     downloadProgress,
-    volume: storeVolume, // Add this
+    volume: storeVolume,
   } = storeToRefs(ttsStore)
   const {
     updateUnifiedBuffer,
@@ -28,19 +28,18 @@ export function useTTS() {
     setCurrentTime,
     setIsDownloadComplete,
     setDownloadProgress,
-    setVolumeAndApply, // Add this
+    setVolumeAndApply,
   } = ttsStore
   const audioQueue = [] // For streaming chunks
 
   // Audio context
   const { audioContext, gainNode, initAudio, setVolume: applyVolumeToAudioContext, closeAudio } = useAudioContext()
 
-  // Playback control
+  // Playback control - get the simplified API
+  const playbackAPI = usePlayback(audioContext, gainNode)
   const {
     isPlaying,
     currentSource,
-    startTime,
-    pausedTime,
     currentTime,
     playbackProgress,
     updatePlaybackProgress,
@@ -52,38 +51,41 @@ export function useTTS() {
     togglePlayback,
     switchToHtmlAudio,
     isUsingHtmlAudio,
-    htmlAudio
-  } = usePlayback(audioContext, gainNode)
+    htmlAudio,
+    startTime,
+    pausedTime
+  } = playbackAPI
 
-  // Streaming mode progress tracking
-  let streamingStartTime = 0
+  // Streaming progress tracking for Web Audio phase
   let streamingElapsedTime = 0
 
   console.log('currentSource in useTTS setup:', currentSource);
 
-  // Watch for generation completion to switch to HTML5 Audio
-  watch([isDownloadComplete, unifiedBuffer], ([downloadComplete, buffer]) => {
+  // Simplified watch for generation completion - immediately switch to HTML5 Audio
+  watch([isDownloadComplete, unifiedBuffer], async ([downloadComplete, buffer]) => {
     if (downloadComplete && buffer && !isUsingHtmlAudio.value) {
       console.log('🔄 Generation complete, switching to HTML5 Audio for replay capability')
       
-      // More aggressive switch - stop current Web Audio immediately
-      if (currentSource.value) {
-        console.log('⏹️ Stopping Web Audio source for auto-switch')
-        currentSource.value.onended = null
-        try {
-          currentSource.value.stop()
-          currentSource.value.disconnect()
-        } catch (error) {
-          console.log('Error stopping source during auto-switch:', error.message)
-        }
-        setCurrentSource(null)
+      // Calculate current streaming time for seamless transition
+      const wasStreamingAndPlaying = isPlaying.value;
+      let streamPlaybackTime = 0;
+      
+      if (currentSource.value && audioContext.value) {
+        // Calculate how much time has elapsed in the current streaming session
+        streamPlaybackTime = audioContext.value.currentTime - startTime.value;
+        streamPlaybackTime = Math.max(0, streamPlaybackTime);
+      } else {
+        streamPlaybackTime = currentTime.value; // Fallback to store's currentTime
       }
       
-      // Exit streaming mode
-      streamingMode = false
+      // Call the new simplified switchToHtmlAudio
+      await switchToHtmlAudio(
+        buffer,                    // The complete AudioBuffer
+        wasStreamingAndPlaying,    // preserveCurrentPlayTime: whether to preserve timing
+        streamPlaybackTime         // seekToTimeAfterSwitch: time to seek to after switch
+      )
       
-      // Switch to HTML5 Audio with current position preserved
-      switchToHtmlAudio(buffer, true)
+      console.log('✅ HTML5 Audio switch completed')
     }
   })
 
@@ -92,61 +94,6 @@ export function useTTS() {
 
   let currentAbortController = null
   let currentSessionId = null
-
-  // NEW: Flag to determine if we're in "streaming mode"
-  // (while true, we use the audioQueue; once the user intervenes, we switch to unifiedBuffer for playback)
-  let streamingMode = true
-  let switchingToHtml = false // Prevent multiple rapid switches
-
-  // Helper function to check if we should immediately switch to HTML5 Audio
-  function shouldSwitchToHtmlAudio() {
-    return isDownloadComplete.value && 
-           unifiedBuffer.value && 
-           !isUsingHtmlAudio.value && 
-           !switchingToHtml
-  }
-
-  // Helper function to perform the switch to HTML5 Audio
-  async function performHtmlAudioSwitch() {
-    if (!shouldSwitchToHtmlAudio()) return false
-    
-    console.log('🔄 Switching to HTML5 Audio - stopping context playback')
-    switchingToHtml = true
-    
-    // Stop current context playback immediately
-    if (currentSource.value) {
-      console.log('⏹️ Stopping current Web Audio source')
-      currentSource.value.onended = null
-      try {
-        currentSource.value.stop()
-        currentSource.value.disconnect()
-      } catch (error) {
-        console.log('Error stopping current source:', error.message)
-      }
-      setCurrentSource(null)
-    }
-    
-    // Suspend audio context to fully stop Web Audio
-    if (audioContext.value && audioContext.value.state !== 'suspended') {
-      console.log('⏸️ Suspending audio context')
-      try {
-        await audioContext.value.suspend()
-      } catch (error) {
-        console.log('Error suspending audio context:', error.message)
-      }
-    }
-    
-    setIsPlaying(false)
-    
-    // Switch to HTML5 Audio and preserve current playback position
-    console.log('🎵 Creating HTML5 Audio element')
-    switchToHtmlAudio(unifiedBuffer.value, true)
-    
-    // Reset the switching flag after a brief delay
-    setTimeout(() => { switchingToHtml = false }, 100)
-    
-    return true
-  }
 
   // Single speaker generation
   async function generateSpeech(text, voice) {
@@ -182,29 +129,19 @@ export function useTTS() {
       setDownloadProgress(0)
       audioQueue.length = 0
       updateUnifiedBuffer(null, setTotalDuration)
-      // make sure we start in streaming mode for new generations:
-      streamingMode = true
       // Reset streaming progress tracking
-      streamingStartTime = 0
       streamingElapsedTime = 0
       
-      // Reset to Web Audio mode for new generation
-      if (isUsingHtmlAudio.value) {
-        isUsingHtmlAudio.value = false
-        if (htmlAudio.value) {
-          htmlAudio.value.pause()
-          htmlAudio.value.src = ''
-          htmlAudio.value = null
-        }
-      }
-
-      console.log('About to check currentSource.value. currentSource is:', currentSource);
-      console.log('typeof currentSource:', typeof currentSource);
-      
+      // Clean up any existing Web Audio source
       if (currentSource.value) {
         currentSource.value.onended = null
-        currentSource.value.stop()
+        try {
+          currentSource.value.stop()
+        } catch (e) {
+          console.warn('Could not stop audio source in error handler (may not have been started):', e.message);
+        }
         currentSource.value.disconnect()
+        setCurrentSource(null)
       }
 
       // Get first chunk and start playback via useAudioChunks
@@ -221,9 +158,6 @@ export function useTTS() {
       const sessionId = firstChunk.headers?.get('X-Session-ID')
       if (sessionId) {
         currentSessionId = sessionId
-        if (currentSource.value) {
-          currentSource.value.sessionId = sessionId
-        }
       }
 
       if (totalChunks === 1) {
@@ -245,111 +179,69 @@ export function useTTS() {
       setIsPlaying(false)
       if (currentSource.value) {
         currentSource.value.onended = null
-        currentSource.value.stop()
+        try {
+          currentSource.value.stop()
+        } catch (e) {
+          console.warn('Could not stop audio source in catch block (may not have been started):', e.message);
+        }
         currentSource.value.disconnect()
+        setCurrentSource(null)
       }
     } finally {
       currentAbortController = null
     }
   }
 
-  // -----------------------------------------------------------------------------
-  // Modified Playback for streaming chunks:
-  // Instead of automatically switching to the unifiedBuffer once it exists,
-  // we only use it if streamingMode === false. While streamingMode is true the queued
-  // chunks will be played one after another.
+  // Simplified playNextChunk for Web Audio streaming (pre-HTML5 switch only)
   async function playNextChunk(text, voice) {
-    if (streamingMode) {
-      if (audioQueue.length > 0) {
-        const buffer = audioQueue.shift()
-        if (currentSource.value) {
-          currentSource.value.onended = null
-          currentSource.value.stop()
-          currentSource.value.disconnect()
-        }
-
-        currentSource.value = audioContext.value.createBufferSource()
-        currentSource.value.buffer = buffer
-        currentSource.value.connect(gainNode.value)
-        currentSource.value.sessionId = currentSessionId
-
-        if (!isPlaying.value) {
-          setIsPlaying(true)
-          // For streaming mode, track cumulative time
-          if (streamingStartTime === 0) {
-            streamingStartTime = audioContext.value.currentTime
-            streamingElapsedTime = 0
-            console.log('🎵 Starting streaming playback, initial time:', streamingStartTime)
-          }
-          startTime.value = audioContext.value.currentTime - streamingElapsedTime
-          console.log('🔊 Chunk playback - elapsed:', streamingElapsedTime.toFixed(2), 'startTime:', startTime.value.toFixed(2))
-          startProgressUpdates()
-        }
-
-        currentSource.value.start(0)
-        currentSource.value.onended = () => {
-          // Update elapsed time for next chunk
-          if (streamingMode) {
-            streamingElapsedTime += buffer.duration
-            startTime.value = audioContext.value.currentTime - streamingElapsedTime
-            console.log('🎵 Chunk ended, total elapsed:', streamingElapsedTime.toFixed(2), 'new startTime:', startTime.value.toFixed(2))
-          }
-          
-          // After finishing this chunk, if more queued chunks exist use them.
-          if (audioQueue.length > 0) {
-            console.log('▶️ Playing next queued chunk, remaining:', audioQueue.length)
-            playNextChunk(text, voice)
-          } else if (isGenerating.value) {
-            // Still generating? Wait a bit until the next chunk is fetched.
-            setTimeout(() => playNextChunk(text, voice), 200)
-          } else {
-            // Generation complete and no queued chunk left => playback is finished.
-            console.log('✅ Streaming playback complete')
-            setIsPlaying(false)
-            progressMessage.value = 'Playback complete!'
-            stopProgressUpdates()
-          }
-        }
-
-        // Continue fetching the next chunks if necessary.
-        if (!isDownloadComplete.value) {
-          fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
-        }
-      } else {
-        // No queued chunk yet. If still generating, keep checking.
-        if (isGenerating.value) {
-          setTimeout(() => playNextChunk(text, voice), 200)
-        }
+    if (audioQueue.length > 0) {
+      const buffer = audioQueue.shift()
+      
+      if (currentSource.value) {
+        currentSource.value.onended = null
+        currentSource.value.stop()
+        currentSource.value.disconnect()
       }
-    } else {
-      // User has taken an action (seek or play/pause) so we use the consolidated buffer.
-      if (unifiedBuffer.value) {
-        if (currentSource.value) {
-          currentSource.value.onended = null
-          currentSource.value.stop()
-          currentSource.value.disconnect()
-        }
-        currentSource.value = audioContext.value.createBufferSource()
-        currentSource.value.buffer = unifiedBuffer.value
-        currentSource.value.connect(gainNode.value)
-        currentSource.value.sessionId = currentSessionId
 
-        if (!isPlaying.value) {
-          setIsPlaying(true)
-          startTime.value = audioContext.value.currentTime
-          startProgressUpdates()
-        }
+      const newSource = audioContext.value.createBufferSource()
+      newSource.buffer = buffer
+      newSource.connect(gainNode.value)
+      newSource.sessionId = currentSessionId
+      setCurrentSource(newSource) // Update store
 
-        currentSource.value.start(0)
-        currentSource.value.onended = () => {
+      if (!isPlaying.value) {
+        setIsPlaying(true)
+        // Let usePlayback manage its startTime
+        pausedTime.value = 0; // Reset for new stream
+        startTime.value = audioContext.value.currentTime;
+        startProgressUpdates()
+      }
+
+      newSource.start(0)
+      newSource.onended = () => {
+        // Update usePlayback's tracking for cumulative time
+        streamingElapsedTime += buffer.duration
+        startTime.value = audioContext.value.currentTime - streamingElapsedTime;
+        
+        if (audioQueue.length > 0) {
+          console.log('▶️ Playing next queued chunk, remaining:', audioQueue.length)
+          playNextChunk(text, voice)
+        } else if (isGenerating.value) {
+          setTimeout(() => playNextChunk(text, voice), 200)
+        } else {
+          console.log('✅ Streaming playback complete')
           setIsPlaying(false)
           progressMessage.value = 'Playback complete!'
-          stopProgressUpdates()
         }
       }
+
+      if (!isDownloadComplete.value) {
+        fetchNextChunks(text, voice, isGenerating, unifiedBuffer, audioQueue, isDownloadComplete)
+      }
+    } else if (isGenerating.value) {
+      setTimeout(() => playNextChunk(text, voice), 200)
     }
   }
-  // -----------------------------------------------------------------------------
 
   // Multi-speaker generation (assumes a full WAV is returned)
   async function generateMultiSpeech(text, speakers) {
@@ -379,23 +271,12 @@ export function useTTS() {
       audioQueue.length = 0
       chunkCache.clear()
       updateUnifiedBuffer(null, setTotalDuration)
-      // For multi-speaker we immediately get a full WAV; so switch to unifiedBuffer mode:
-      streamingMode = false
-      
-      // Reset to Web Audio mode for new generation
-      if (isUsingHtmlAudio.value) {
-        isUsingHtmlAudio.value = false
-        if (htmlAudio.value) {
-          htmlAudio.value.pause()
-          htmlAudio.value.src = ''
-          htmlAudio.value = null
-        }
-      }
 
       if (currentSource.value) {
         currentSource.value.onended = null
         currentSource.value.stop()
         currentSource.value.disconnect()
+        setCurrentSource(null)
       }
 
       const api = useAPI()
@@ -413,26 +294,13 @@ export function useTTS() {
 
       const sessionId = multiResponse.sessionId
       const arrayBuffer = multiResponse.arrayBuffer
-      updateUnifiedBuffer(
-        await audioContext.value.decodeAudioData(arrayBuffer),
-        setTotalDuration
-      )
+      const decodedBuffer = await audioContext.value.decodeAudioData(arrayBuffer)
+      
+      updateUnifiedBuffer(decodedBuffer, setTotalDuration)
       setIsDownloadComplete(true)
 
-      currentSource.value = audioContext.value.createBufferSource()
-      currentSource.value.buffer = unifiedBuffer.value
-      currentSource.value.connect(gainNode.value)
-      currentSource.value.sessionId = sessionId
-      setIsPlaying(true)
-      startTime.value = audioContext.value.currentTime
-      currentSource.value.start(0)
-      startProgressUpdates()
-
-      currentSource.value.onended = () => {
-        setIsPlaying(false)
-        progressMessage.value = 'Playback complete!'
-        stopProgressUpdates()
-      }
+      // For multi-speaker, immediately switch to HTML5 since we have the complete buffer
+      await switchToHtmlAudio(decodedBuffer, 0, true)
 
       isGenerating.value = false
     } catch (error) {
@@ -444,28 +312,28 @@ export function useTTS() {
         currentSource.value.onended = null
         currentSource.value.stop()
         currentSource.value.disconnect()
+        setCurrentSource(null)
       }
     }
   }
 
   function setSyncedVolume(newVolumeValue) {
     // newVolumeValue is already normalized (0-1) from usePlayback
-    // Just apply it directly to the audio context
+    // Apply it to both Web Audio context and HTML5 audio always
     applyVolumeToAudioContext(newVolumeValue);
+    
+    // Also update HTML5 audio volume if it exists (whether playing or not)
+    if (htmlAudio.value) {
+      htmlAudio.value.volume = newVolumeValue;
+      console.log('📢 Updated HTML5 audio volume to:', newVolumeValue);
+    }
   }
 
-  // When the user clicks play/pause we switch out of streaming mode.
-  // If download is complete, switch to HTML5 Audio immediately.
+  // Simplified toggle playback handler
   async function togglePlaybackHandler() {
-    console.log('🎮 Toggle playback called - checking for HTML5 switch')
-    const switched = await performHtmlAudioSwitch()
-    if (switched) {
-      console.log('✅ HTML5 Audio switch completed - skipping Web Audio togglePlayback')
-      return
-    }
-    console.log('🔊 Using Web Audio playback')
-    streamingMode = false
-    await togglePlayback(unifiedBuffer)
+    console.log('🎮 Toggle playback called')
+    // Just delegate to usePlayback - it will handle HTML5 vs Web Audio internally
+    await togglePlayback()
   }
 
   async function stopGeneration() {
@@ -497,13 +365,22 @@ export function useTTS() {
       currentSource.value.onended = null
       currentSource.value.stop()
       currentSource.value.disconnect()
+      setCurrentSource(null)
     }
-    setCurrentSource(null)
+    
+    // Stop HTML5 audio if it exists
+    if (htmlAudio.value) {
+      htmlAudio.value.pause()
+      htmlAudio.value.src = ''
+      htmlAudio.value = null
+    }
+    isUsingHtmlAudio.value = false
+    
     if (audioContext.value) {
       closeAudio()
     }
     
-    setSyncedVolume(80)
+    setSyncedVolume(0.8)
     progressMessage.value = ''
     setIsPlaying(false)
     // Reset our chunk state
@@ -517,23 +394,37 @@ export function useTTS() {
     setCurrentTime(0)
     stopProgressUpdates()
     
-    // Reset HTML5 Audio switching flag
-    switchingToHtml = false
-    streamingMode = true
-    
-    // Reset HTML5 Audio mode
-    if (isUsingHtmlAudio.value) {
-      isUsingHtmlAudio.value = false
-      if (htmlAudio.value) {
-        htmlAudio.value.pause()
-        htmlAudio.value.src = ''
-        htmlAudio.value = null
-      }
-    }
+    // Reset streaming time tracking
+    streamingElapsedTime = 0
   }
 
   async function downloadAudio() {
     await downloadAudioHelper(unifiedBuffer, isDownloadComplete, progressMessage)
+  }
+
+  // Simplified seek handlers - only work after download complete (when HTML5 is active)
+  async function seekToPositionHandler(pos) {
+    console.log(`🎯 Seek to position ${pos}% called`)
+    
+    if (!isDownloadComplete.value) {
+      console.warn('Seek ignored: Download not complete yet')
+      return
+    }
+    
+    // usePlayback will handle the HTML5 seeking internally
+    seekToPosition(pos)
+  }
+
+  async function seekRelativeHandler(offset) {
+    console.log(`⏩ Seek relative ${offset}s called`)
+    
+    if (!isDownloadComplete.value) {
+      console.warn('Seek relative ignored: Download not complete yet')
+      return
+    }
+    
+    // usePlayback will handle the HTML5 seeking internally
+    seekRelative(offset)
   }
 
   const handleChunkProgress = (event) => {
@@ -566,119 +457,12 @@ export function useTTS() {
     setTotalDuration,
     setVolume: setSyncedVolume,
     volume: storeVolume,
-    // When the user seeks, we also set streamingMode to false
-    // If download is complete, switch to HTML5 Audio immediately.
-    seekToPosition: async (pos) => { 
-      console.log(`🎯 Seek to position ${pos}% called`)
-      
-      // Always switch to HTML5 Audio when seeking after download complete
-      // This prevents dual audio playback issues
-      if (isDownloadComplete.value && unifiedBuffer.value) {
-        if (switchingToHtml) return // Prevent multiple rapid switches
-        
-        console.log('🔄 Force switching to HTML5 Audio for seeking')
-        const targetTime = (pos / 100) * audioDuration.value
-        
-        switchingToHtml = true
-        streamingMode = false
-        
-        // Stop current context playback immediately and aggressively
-        if (currentSource.value) {
-          console.log('⏹️ Stopping current Web Audio source for seek')
-          currentSource.value.onended = null
-          try {
-            currentSource.value.stop()
-            currentSource.value.disconnect()
-          } catch (error) {
-            console.log('Error stopping current source:', error.message)
-          }
-          setCurrentSource(null)
-        }
-        
-        // Suspend audio context to fully stop Web Audio
-        if (audioContext.value && audioContext.value.state !== 'suspended') {
-          console.log('⏸️ Suspending audio context for seek')
-          try {
-            await audioContext.value.suspend()
-          } catch (error) {
-            console.log('Error suspending audio context:', error.message)
-          }
-        }
-        
-        setIsPlaying(false)
-        stopProgressUpdates()
-        
-        // Switch to HTML5 Audio with target seek position
-        console.log(`🎵 Creating HTML5 Audio and seeking to ${targetTime}s`)
-        switchToHtmlAudio(unifiedBuffer.value, false, targetTime)
-        
-        // Reset the switching flag after a brief delay
-        setTimeout(() => { switchingToHtml = false }, 100)
-        return
-      }
-      
-      console.log('🔊 Using Web Audio seeking')
-      streamingMode = false;
-      // Reset streaming time tracking when switching to unified buffer
-      streamingStartTime = 0
-      streamingElapsedTime = 0
-      seekToPosition(pos, unifiedBuffer);
-    },
+    seekToPosition: seekToPositionHandler,
+    seekRelative: seekRelativeHandler,
     downloadAudio,
     audioDuration,
     currentTime,
     stopGeneration,
-    // Also update seekRelative so that user interactions switch modes.
-    seekRelative: async (offset) => {
-      if (isDownloadComplete.value && unifiedBuffer.value) {
-        if (switchingToHtml) return // Prevent multiple rapid switches
-        
-        // Calculate target time for HTML5 Audio
-        const currentPlaybackTime = isPlaying.value
-          ? audioContext.value.currentTime - startTime.value
-          : currentTime.value
-        const newTime = Math.max(0, Math.min(audioDuration.value, currentPlaybackTime + offset))
-        
-        switchingToHtml = true
-        streamingMode = false
-        
-        // Stop current context playback immediately
-        if (currentSource.value) {
-          currentSource.value.onended = null
-          try {
-            currentSource.value.stop()
-            currentSource.value.disconnect()
-          } catch (error) {
-            console.log('Error stopping current source:', error.message)
-          }
-          setCurrentSource(null)
-        }
-        
-        // Suspend audio context to fully stop Web Audio
-        if (audioContext.value && audioContext.value.state !== 'suspended') {
-          try {
-            await audioContext.value.suspend()
-          } catch (error) {
-            console.log('Error suspending audio context:', error.message)
-          }
-        }
-        
-        setIsPlaying(false)
-        stopProgressUpdates()
-        
-        // Switch to HTML5 Audio with target seek position
-        switchToHtmlAudio(unifiedBuffer.value, false, newTime)
-        
-        // Reset the switching flag after a brief delay
-        setTimeout(() => { switchingToHtml = false }, 100)
-        return
-      }
-      streamingMode = false;
-      // Reset streaming time tracking when switching to unified buffer
-      streamingStartTime = 0
-      streamingElapsedTime = 0
-      seekRelative(offset, unifiedBuffer);
-    },
     unifiedBuffer
   }
-} 
+}
