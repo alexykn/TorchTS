@@ -13,5 +13,8 @@ export const API_ENDPOINTS = {
   PROFILE_FILES: (profileId) => `${API_BASE}/profiles/${profileId}/files`,
   PROFILE_FILE: (profileId, fileId) =>
     `${API_BASE}/profiles/${profileId}/files/${fileId}`,
-  PROFILE_AUDIO: (profileId) => `${API_BASE}/profiles/${profileId}/audio`
+  PROFILE_AUDIO: (profileId) => `${API_BASE}/profiles/${profileId}/audio`,
+  MODEL_STATUS: `${API_BASE}/model/status`,
+  MODEL_UNLOAD: `${API_BASE}/model/unload`,
+  MODEL_TIMEOUT: `${API_BASE}/model/timeout`
 }

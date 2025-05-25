@@ -40,14 +40,19 @@ export function usePlayback(audioContext, gainNode) {
       
       setCurrentTime(currentTime)
       if (duration > 0) {
-        setPlaybackProgress((currentTime / duration) * 100)
+        const progress = (currentTime / duration) * 100
+        setPlaybackProgress(progress)
+        // console.log('🎵 HTML5 progress:', currentTime.toFixed(2), '/', duration.toFixed(2), '=', progress.toFixed(1) + '%')
       }
     } else if (audioContext.value) {
       // Use Web Audio API progress
       const elapsed = audioContext.value.currentTime - startTime.value
       if (totalDuration.value > 0) {
-        setCurrentTime(Math.min(totalDuration.value, elapsed))
-        setPlaybackProgress(Math.min(100, (elapsed / totalDuration.value) * 100))
+        const clampedElapsed = Math.max(0, Math.min(totalDuration.value, elapsed))
+        const progress = Math.min(100, (clampedElapsed / totalDuration.value) * 100)
+        setCurrentTime(clampedElapsed)
+        setPlaybackProgress(progress)
+        // console.log('🔊 Web Audio progress:', clampedElapsed.toFixed(2), '/', totalDuration.value.toFixed(2), '=', progress.toFixed(1) + '%')
       }
     }
 
@@ -69,17 +74,25 @@ export function usePlayback(audioContext, gainNode) {
       if (duration > 0) {
         setPlaybackProgress((currentTime / duration) * 100)
       }
-    } else if (audioContext.value) {
+    } else if (audioContext.value && totalDuration.value > 0) {
       const elapsed = audioContext.value.currentTime - startTime.value
-      setCurrentTime(Math.min(totalDuration.value, elapsed))
-      setPlaybackProgress(Math.min(100, (elapsed / totalDuration.value) * 100))
+      const clampedElapsed = Math.max(0, Math.min(totalDuration.value, elapsed))
+      setCurrentTime(clampedElapsed)
+      setPlaybackProgress(Math.min(100, (clampedElapsed / totalDuration.value) * 100))
     }
   }
 
   function setTotalDuration(duration) {
+    console.log('📏 Setting total duration:', duration, 'seconds, currently playing:', isPlaying.value)
     totalDuration.value = duration
-    setCurrentTime(0)
-    setPlaybackProgress(0)
+    // Only reset progress if not currently playing to avoid interrupting ongoing playback
+    if (!isPlaying.value) {
+      console.log('🔄 Resetting progress to 0 (not currently playing)')
+      setCurrentTime(0)
+      setPlaybackProgress(0)
+    } else {
+      console.log('⏸️ Keeping current progress (actively playing)')
+    }
   }
 
   function seekToPosition(position, unifiedBuffer) {
@@ -173,10 +186,27 @@ export function usePlayback(audioContext, gainNode) {
     }
   }
 
-  function switchToHtmlAudio(audioBuffer) {
+  function switchToHtmlAudio(audioBuffer, preserveCurrentTime = false, seekToPosition = null) {
     if (!audioBuffer) return
     
     try {
+      // IMMEDIATELY stop any Web Audio playback to prevent dual audio
+      if (currentSource.value) {
+        console.log('🛑 Immediately stopping Web Audio source during HTML5 switch')
+        currentSource.value.onended = null
+        try {
+          currentSource.value.stop()
+          currentSource.value.disconnect()
+        } catch (error) {
+          console.log('Web Audio source already stopped:', error.message)
+        }
+        setCurrentSource(null)
+      }
+      
+      // Store the current playback position if preserving
+      const currentPlaybackTime = seekToPosition !== null ? seekToPosition : (preserveCurrentTime ? currentTime.value : 0)
+      const wasPlaying = preserveCurrentTime ? isPlaying.value : false
+      
       // Convert AudioBuffer to blob
       const numberOfChannels = audioBuffer.numberOfChannels
       const sampleRate = audioBuffer.sampleRate
@@ -225,6 +255,7 @@ export function usePlayback(audioContext, gainNode) {
       htmlAudio.value.src = URL.createObjectURL(audioBlob.value)
       htmlAudio.value.volume = (volume.value || 80) / 100
       
+      // Set up event handlers
       htmlAudio.value.onended = () => {
         setIsPlaying(false)
         setCurrentTime(totalDuration.value)
@@ -238,8 +269,45 @@ export function usePlayback(audioContext, gainNode) {
         }
       }
       
+      // Immediately mark as using HTML5 Audio to prevent Web Audio interference
       isUsingHtmlAudio.value = true
-      console.log('Switched to HTML5 Audio for replay')
+      
+      // Force immediate progress update with current position
+      if (preserveCurrentTime && currentPlaybackTime > 0) {
+        setCurrentTime(currentPlaybackTime)
+        const progress = totalDuration.value > 0 ? (currentPlaybackTime / totalDuration.value) * 100 : 0
+        setPlaybackProgress(progress)
+        console.log('🔄 Immediate progress update during HTML5 switch:', currentPlaybackTime.toFixed(2), 's =', progress.toFixed(1) + '%')
+      }
+      
+      // Set up loadeddata handler to restore position and playback state
+      htmlAudio.value.onloadeddata = () => {
+        // Update total duration from HTML5 Audio if available
+        if (htmlAudio.value.duration && htmlAudio.value.duration > 0) {
+          totalDuration.value = htmlAudio.value.duration
+          console.log('📏 HTML5 Audio duration loaded:', htmlAudio.value.duration.toFixed(2), 's')
+        }
+        
+        if (preserveCurrentTime && currentPlaybackTime > 0) {
+          htmlAudio.value.currentTime = currentPlaybackTime
+          setCurrentTime(currentPlaybackTime)
+          const progress = totalDuration.value > 0 ? (currentPlaybackTime / totalDuration.value) * 100 : 0
+          setPlaybackProgress(progress)
+          console.log('🎯 HTML5 Audio seeked to:', currentPlaybackTime.toFixed(2), 's')
+        }
+        
+        // Resume playback if it was playing before
+        if (preserveCurrentTime && wasPlaying) {
+          htmlAudio.value.play().then(() => {
+            setIsPlaying(true)
+            startProgressUpdates()
+            console.log('▶️ HTML5 Audio playback resumed')
+          }).catch(error => {
+            console.error('Failed to resume HTML5 Audio playback:', error)
+          })
+        }
+      }
+      console.log('Switched to HTML5 Audio for replay', preserveCurrentTime ? 'with preserved position' : '')
       
     } catch (error) {
       console.error('Failed to create HTML5 Audio:', error)

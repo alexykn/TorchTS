@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from processing.text_processor import chunk_text
 from processing.audio_generator import normalize_audio
 import asyncio
-from main import pipelines  # Use the pipelines already set up in main.py
+from services.model_service import get_model_manager
 from threading import Lock
 
 # Global variable to track active generation sessions
@@ -19,10 +19,10 @@ active_generations = set()
 active_generations_lock = Lock()
 
 def generate_single_tts(request):
+    session_data = f"{request.voice}_{request.text[:32]}".encode('utf-8')
+    session_id = hashlib.md5(session_data).hexdigest()
+    
     try:
-        session_data = f"{request.voice}_{request.text[:32]}".encode('utf-8')
-        session_id = hashlib.md5(session_data).hexdigest()
-        
         # Register this session as active. Operations on ``active_generations``
         # are protected by ``active_generations_lock`` to avoid race conditions
         # when multiple requests modify the set concurrently.
@@ -38,10 +38,7 @@ def generate_single_tts(request):
             raise HTTPException(status_code=400, detail="Voice parameter must be provided in format: [a/b]_[name]")
         
         voice_type = request.voice[0].lower()
-        if voice_type not in pipelines:
-            raise HTTPException(status_code=400, detail=f"Invalid voice type: {voice_type}. Must be 'a' or 'b'")
-        
-        pipeline = pipelines[voice_type]
+        model_manager = get_model_manager()
         chunks = chunk_text(request.text)
         
         if not 0 <= request.chunk_id < len(chunks):
@@ -50,12 +47,11 @@ def generate_single_tts(request):
         chunk = chunks[request.chunk_id]
         
         all_audio = []
-        for _, _, audio in pipeline(chunk, voice=request.voice, speed=request.speed):
-            if session_id not in active_generations:
-                if hasattr(pipeline, 'close'):
-                    pipeline.close()
-                raise HTTPException(status_code=499, detail="Client cancelled request")
-            all_audio.append(audio)
+        with model_manager.get_pipeline(voice_type) as pipeline:
+            for _, _, audio in pipeline(chunk, voice=request.voice, speed=request.speed):
+                if session_id not in active_generations:
+                    raise HTTPException(status_code=499, detail="Client cancelled request")
+                all_audio.append(audio)
         
         final_audio = numpy.concatenate(all_audio)
         audio_normalized = normalize_audio(final_audio)
@@ -121,24 +117,19 @@ def generate_multi_tts(request):
             if not voice or len(voice) < 2:
                 raise HTTPException(status_code=400, detail=f"Voice for speaker {speaker_id} is invalid or not provided")
             voice_type = voice[0].lower()
-            if voice_type not in pipelines:
-                raise HTTPException(status_code=400, detail=f"Invalid voice type for speaker {speaker_id}: {voice}. Must be 'a' or 'b'")
-            pipeline = pipelines[voice_type]
+            model_manager = get_model_manager()
             chunks = chunk_text(segment_text)
             if not chunks:
                 continue
             segment_audio_chunks = []
-            for chunk in chunks:
-                if session_id not in active_generations:
-                    if hasattr(pipeline, 'close'):
-                        pipeline.close()
-                    raise HTTPException(status_code=499, detail="Client cancelled request")
-                for _, _, audio in pipeline(chunk, voice=voice, speed=request.speed):
+            with model_manager.get_pipeline(voice_type) as pipeline:
+                for chunk in chunks:
                     if session_id not in active_generations:
-                        if hasattr(pipeline, 'close'):
-                            pipeline.close()
                         raise HTTPException(status_code=499, detail="Client cancelled request")
-                    segment_audio_chunks.append(audio)
+                    for _, _, audio in pipeline(chunk, voice=voice, speed=request.speed):
+                        if session_id not in active_generations:
+                            raise HTTPException(status_code=499, detail="Client cancelled request")
+                        segment_audio_chunks.append(audio)
             if segment_audio_chunks:
                 final_segment_audio = numpy.concatenate(segment_audio_chunks)
                 all_audio_segments.append(final_segment_audio)
@@ -186,42 +177,27 @@ def stop_generation_service(session_id: str):
             return {"message": "No active generation found for this session", "session_id": session_id}
 
 async def list_profile_audio_service(profile_id: int):
-    from storage.models import (
-        ASYNC_DB,
-        AsyncSessionLocal,
-        engine,
-        AudioOutput,
-        SA_AVAILABLE,
-    )
+    """List audio outputs for a profile. Returns empty list if SQLAlchemy is not available."""
     try:
-        from sqlalchemy import select
-        from sqlalchemy.orm import Session
-    except Exception:  # pragma: no cover - SQLAlchemy missing
-        select = None
-        Session = None
+        from storage.models import (
+            ASYNC_DB,
+            AsyncSessionLocal,
+            engine,
+            AudioOutput,
+            SA_AVAILABLE,
+        )
+        from sqlalchemy import select  # type: ignore
+        from sqlalchemy.orm import Session  # type: ignore
+        
+        if not SA_AVAILABLE or engine is None:
+            return []
 
-    if not SA_AVAILABLE or engine is None:
-        raise RuntimeError("SQLAlchemy is not available")
-
-    if ASYNC_DB and AsyncSessionLocal:
-        async with AsyncSessionLocal() as session:
-            result = await session.execute(
-                select(AudioOutput).where(AudioOutput.profile_id == profile_id)
-            )
-            outputs = result.scalars().all()
-            return [
-                {
-                    "id": a.id,
-                    "voice": a.voice,
-                    "created_at": a.created_at,
-                    "file_path": a.file_path,
-                }
-                for a in outputs
-            ]
-    else:
-        def _sync_op():
-            with Session(engine) as session:
-                outputs = session.query(AudioOutput).filter_by(profile_id=profile_id).all()
+        if ASYNC_DB and AsyncSessionLocal and AudioOutput:
+            async with AsyncSessionLocal() as session:  # type: ignore
+                result = await session.execute(  # type: ignore
+                    select(AudioOutput).where(AudioOutput.profile_id == profile_id)  # type: ignore
+                )
+                outputs = result.scalars().all()  # type: ignore
                 return [
                     {
                         "id": a.id,
@@ -231,5 +207,21 @@ async def list_profile_audio_service(profile_id: int):
                     }
                     for a in outputs
                 ]
+        else:
+            def _sync_op():
+                with Session(engine) as session:  # type: ignore
+                    outputs = session.query(AudioOutput).filter_by(profile_id=profile_id).all()  # type: ignore
+                    return [
+                        {
+                            "id": a.id,
+                            "voice": a.voice,
+                            "created_at": a.created_at,
+                            "file_path": a.file_path,
+                        }
+                        for a in outputs
+                    ]
 
-        return await asyncio.to_thread(_sync_op)
+            return await asyncio.to_thread(_sync_op)
+    except Exception:
+        # Return empty list if SQLAlchemy or database operations fail
+        return []

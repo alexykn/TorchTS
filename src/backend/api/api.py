@@ -20,12 +20,19 @@ from services.tts_service import (
     stop_generation_service,
     list_profile_audio_service
 )
+from services.model_service import get_model_manager
 
 app = FastAPI(
     title="TorchTS API",
     description="Text-to-Speech API using TorchTS",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize model manager and start unload scheduler on startup."""
+    model_manager = get_model_manager()
+    model_manager._ensure_unload_scheduler_running()
 
 # Enable CORS for development
 app.add_middleware(
@@ -68,6 +75,9 @@ class MultiTTSRequest(BaseModel):
     text: str
     speed: Optional[float] = 1.0
     speakers: dict[str, str]
+
+class ModelTimeoutUpdate(BaseModel):
+    timeout_seconds: int
 
 @app.post("/profiles")
 async def create_profile(profile: ProfileCreate):
@@ -121,6 +131,29 @@ async def generate_audio_multi(request: MultiTTSRequest):
 async def stop_generation(request: StopGenerationRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(stop_generation_service, request.session_id)
     return {"message": "Generation cancellation initiated", "session_id": request.session_id}
+
+@app.get("/model/status")
+async def get_model_status():
+    """Get current model status and memory usage."""
+    model_manager = get_model_manager()
+    return model_manager.get_model_status()
+
+@app.post("/model/unload")
+async def force_unload_model():
+    """Force immediate unloading of the model to free memory."""
+    model_manager = get_model_manager()
+    model_manager.force_unload()
+    return {"message": "Model unloaded successfully"}
+
+@app.post("/model/timeout")
+async def update_model_timeout(request: ModelTimeoutUpdate):
+    """Update the model unload timeout."""
+    model_manager = get_model_manager()
+    try:
+        model_manager.update_timeout(request.timeout_seconds)
+        return {"message": f"Timeout updated to {request.timeout_seconds} seconds"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/")
 async def read_root():

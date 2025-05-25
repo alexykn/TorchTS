@@ -53,5 +53,13 @@ RUN mkdir -p data/audio data/files
 # Set the working directory to where main.py is
 WORKDIR /app/src/backend
 
+# Set default environment variables for model management
+ENV MODEL_UNLOAD_TIMEOUT=300
+ENV MODEL_DEVICE=""
+ENV TORCHTS_DB_URL="sqlite:///data/torchts.db"
+ENV LOG_LEVEL=INFO
+ENV FORCE_GC_AFTER_REQUEST=false
+ENV CLEAR_CUDA_CACHE=true
+
 # Command to run the application using the virtual environment's Python
-CMD ["/app/.venv/bin/python", "main.py"] 
+CMD ["/app/.venv/bin/python", "main.py"]

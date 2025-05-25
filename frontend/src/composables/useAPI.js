@@ -1,4 +1,4 @@
-import { API_ENDPOINTS } from '../constants/api'
+import { API_ENDPOINTS, API_BASE } from '../constants/api'
 
 export function useAPI() {
   async function generateSpeechChunk({ text, voice, chunkId, speed = 1.0, signal }) {
@@ -241,6 +241,41 @@ export function useAPI() {
     return await response.json()
   }
 
+  async function get(endpoint) {
+    let response
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`)
+    } catch (error) {
+      throw new Error(`Network error: ${error.message}`)
+    }
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || errorData.error || `Request failed: ${response.status}`)
+    }
+    return await response.json()
+  }
+
+  async function post(endpoint, data = null) {
+    let response
+    try {
+      const options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }
+      if (data) {
+        options.body = JSON.stringify(data)
+      }
+      response = await fetch(`${API_BASE}${endpoint}`, options)
+    } catch (error) {
+      throw new Error(`Network error: ${error.message}`)
+    }
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || errorData.error || `Request failed: ${response.status}`)
+    }
+    return await response.json()
+  }
+
   return {
     generateSpeechChunk,
     generateMultiSpeech,
@@ -253,6 +288,8 @@ export function useAPI() {
     uploadFile,
     deleteFile,
     deleteAllFiles,
-    getFileContent
+    getFileContent,
+    get,
+    post
   }
 } 

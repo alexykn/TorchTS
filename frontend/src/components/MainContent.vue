@@ -26,6 +26,8 @@
             @update:voice="val => localVoice = val"
             @update-multi-speaker-voice="updateMultiSpeakerVoice"
           />
+
+          <ModelStatus />
   
           <div class="controls-row">
             <AudioControls
@@ -111,6 +113,7 @@ import SpeakerSelection from './SpeakerSelection.vue'
 import AudioControls from './AudioControls.vue'
 import PlaybackControls from './PlaybackControls.vue'
 import ProgressBar from './ProgressBar.vue'
+import ModelStatus from './ModelStatus.vue'
   
 // Define props and emits (as before)
 const props = defineProps({

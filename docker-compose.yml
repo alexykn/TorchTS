@@ -12,6 +12,12 @@ services:
       - ./src/backend:/app/src/backend
     environment:
       - PYTHONUNBUFFERED=1
+      - MODEL_UNLOAD_TIMEOUT=300
+      - MODEL_DEVICE=
+      - TORCHTS_DB_URL=sqlite:///data/torchts.db
+      - LOG_LEVEL=INFO
+      - FORCE_GC_AFTER_REQUEST=false
+      - CLEAR_CUDA_CACHE=true
     restart: unless-stopped
 
   frontend:
