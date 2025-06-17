@@ -1,8 +1,2 @@
-version_backup/
-node_modules/
-__pycache__/
-.venv/
-.vscode/
-.DS_Store
-bun.lock
-data/
+# Created by venv; see https://docs.python.org/3/library/venv.html
+*
